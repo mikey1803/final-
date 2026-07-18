@@ -1,8 +1,8 @@
 """Simulation test for the AdaptiveSelector.
 
-Runs 500 episodes for both UCB1 and epsilon-greedy (same failure-type
-sequence for fair comparison), snapshotting the learned-best strategy
-every 25 episodes to plot a convergence curve.
+Runs 500 episodes for UCB1, epsilon-greedy, and Thompson Sampling (same
+failure-type sequence for fair comparison), snapshotting the learned-best
+strategy every 25 episodes to plot a convergence curve.
 
 Outputs:
   - data/convergence_curve.png  (line chart, 150 dpi)
@@ -51,16 +51,11 @@ def _run_with_tracking(
     snapshot_interval: int = 25,
     base_seed: int = 42,
 ) -> tuple[AdaptiveSelector, list[int], list[int]]:
-    """Run a simulation, recording correct-match counts at regular checkpoints.
-
-    Returns:
-        (final_selector, checkpoint_episodes, checkpoint_matches)
-    """
+    """Run a simulation, recording correct-match counts at regular checkpoints."""
     selector = AdaptiveSelector(algorithm=algorithm, seed=base_seed)
-    # Use a deterministic per-algorithm offset — hash() is randomised in
-    # Python 3 so we must not rely on it for reproducibility.
-    algo_offset = 0 if algorithm == "ucb1" else 1000
-    rng = random.Random(base_seed + algo_offset)
+    # Deterministic per-algorithm offset (hash() is randomised in Python 3)
+    offsets = {"ucb1": 0, "epsilon_greedy": 1000, "thompson_sampling": 2000}
+    rng = random.Random(base_seed + offsets.get(algorithm, 0))
 
     episodes: list[int] = []
     matches: list[int] = []
@@ -88,17 +83,20 @@ def main():
     snapshot_interval = 25
     base_seed = 42
 
-    # Generate the shared failure-type sequence once so both algorithms
+    # Generate the shared failure-type sequence once so all algorithms
     # face identical problem instances.
     type_rng = random.Random(base_seed)
     failure_types = [type_rng.choice(list(FailureType)) for _ in range(n_episodes)]
 
-    # --- run both algorithms ---
+    # --- run all three algorithms ---
     ucb1_sel, ucb1_eps, ucb1_matches = _run_with_tracking(
         n_episodes, "ucb1", failure_types, snapshot_interval, base_seed,
     )
     eps_sel, eps_eps, eps_matches = _run_with_tracking(
         n_episodes, "epsilon_greedy", failure_types, snapshot_interval, base_seed,
+    )
+    ts_sel, ts_eps, ts_matches = _run_with_tracking(
+        n_episodes, "thompson_sampling", failure_types, snapshot_interval, base_seed,
     )
 
     # --- convergence curve plot ---
@@ -107,6 +105,8 @@ def main():
             label="UCB1", color="#2563eb")
     ax.plot(eps_eps, eps_matches, marker="s", markersize=4, linewidth=2,
             label="Epsilon-greedy (eps=0.15)", color="#dc2626", linestyle="--")
+    ax.plot(ts_eps, ts_matches, marker="P", markersize=5, linewidth=2,
+            label="Thompson Sampling", color="#16a34a", linestyle="-.")
     ax.axhline(y=7, color="gray", linestyle=":", alpha=0.5, label="Perfect (7/7)")
     ax.set_xlabel("Episodes", fontsize=12)
     ax.set_ylabel("Correct matches (out of 7)", fontsize=12)
@@ -127,23 +127,24 @@ def main():
     print(f"  {'='*60}")
     print(f"  Final checkpoint (episode {n_episodes})")
     print(f"  {'='*60}")
-    print(f"  {'Algorithm':24s}  {'Correct':>8s}  {'Accuracy':>10s}")
-    print(f"  {'-'*48}")
-    print(f"  {'UCB1':24s}  {ucb1_matches[-1]:>8d}  {ucb1_matches[-1]/7:>10.2%}")
-    print(f"  {'Epsilon-greedy (eps=0.15)':24s}  {eps_matches[-1]:>8d}  {eps_matches[-1]/7:>10.2%}")
+    print(f"  {'Algorithm':28s}  {'Correct':>8s}  {'Accuracy':>10s}")
+    print(f"  {'-'*52}")
+    print(f"  {'UCB1':28s}  {ucb1_matches[-1]:>8d}  {ucb1_matches[-1]/7:>10.2%}")
+    print(f"  {'Epsilon-greedy (eps=0.15)':28s}  {eps_matches[-1]:>8d}  {eps_matches[-1]/7:>10.2%}")
+    print(f"  {'Thompson Sampling':28s}  {ts_matches[-1]:>8d}  {ts_matches[-1]/7:>10.2%}")
     print()
 
     # --- full checkpoint history ---
-    print(f"  {'Episode':>8s}  {'UCB1':>6s}  {'Eps-greedy':>10s}")
-    print(f"  {'-'*30}")
-    for ep, m1, m2 in zip(ucb1_eps, ucb1_matches, eps_matches):
-        print(f"  {ep:>8d}  {m1:>6d}  {m2:>10d}")
+    print(f"  {'Episode':>8s}  {'UCB1':>6s}  {'Eps-greedy':>10s}  {'Thompson':>10s}")
+    print(f"  {'-'*40}")
+    for ep, m1, m2, m3 in zip(ucb1_eps, ucb1_matches, eps_matches, ts_matches):
+        print(f"  {ep:>8d}  {m1:>6d}  {m2:>10d}  {m3:>10d}")
     print()
 
     # --- per-algorithm detail tables ---
-    for label, sel in [("UCB1", ucb1_sel), ("EPSILON_GREEDY", eps_sel)]:
+    for label, sel in [("UCB1", ucb1_sel), ("EPSILON_GREEDY", eps_sel), ("THOMPSON_SAMPLING", ts_sel)]:
         print(f"\n{'='*70}")
-        print(f"  {label} — Final learned success rates")
+        print(f"  {label} - Final learned success rates")
         print(f"{'='*70}")
         stats = sel.get_stats_table()
         print(stats.to_string(float_format="{:.2f}".format))

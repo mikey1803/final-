@@ -1,6 +1,6 @@
 # Failure-Aware Adaptive Reasoning Framework for Reliable Autonomous AI Agents
 
-This project builds a failure-aware autonomous AI agent framework that can detect, classify, and recover from execution failures instead of blindly retrying or stopping. The core idea is to learn how effective each `(failure_type, recovery_strategy)` pair is over time, store those outcomes in persistent memory, and use a UCB1 multi-armed bandit selector to choose recovery actions that balance exploration with proven success. The result is an agent that improves its recovery decisions from experience and can be evaluated against non-learning baselines such as naive retry, fixed rules, random selection, and one-shot LLM-style strategy selection.
+This project builds a failure-aware autonomous AI agent framework that can detect, classify, and recover from execution failures instead of blindly retrying or stopping. The core idea is to learn how effective each `(failure_type, recovery_strategy)` pair is over time, store those outcomes in persistent memory, and use multi-armed bandit selectors (Thompson Sampling, UCB1, Epsilon-Greedy) to choose recovery actions that balance exploration with proven success. The result is an agent that improves its recovery decisions from experience and can be evaluated against non-learning baselines such as naive retry, fixed rules, random selection, and one-shot LLM-style strategy selection.
 
 ## Architecture
 
@@ -11,7 +11,7 @@ Failure Injection
 Failure Classification
         |
         v
-Recovery Selection (UCB1 Bandit)
+Recovery Selection (Multi-Armed Bandit)
         |
         v
 Recovery Outcome
@@ -29,13 +29,14 @@ Evaluation was run over 500 episodes and 30 independent trials. The late-stage s
 
 | Method | Late-Stage Success Rate |
 | --- | ---: |
-| Adaptive UCB1 | 56.47% |
-| Fixed Rule | 52.00% |
-| One-Shot LLM | 49.23% |
-| Random | 42.27% |
+| Thompson Sampling | 65.50% |
+| UCB1 | 57.87% |
+| Fixed Rule | 52.60% |
+| One-Shot LLM | 47.47% |
+| Random | 41.87% |
 | Naive Retry | 31.23% |
 
-Paired t-tests comparing Adaptive UCB1 against each baseline on per-trial late-stage success rates found all four differences statistically significant at `p < 0.05`.
+Thompson Sampling was the top-performing method, converging to the correct optimal recovery strategy for all 7 failure types by episode 300, compared to 6/7 for UCB1. All differences between Thompson Sampling and the baseline methods were statistically significant (p < 0.05, paired t-test across 30 trials).
 
 The failure classifier achieved:
 
@@ -49,6 +50,7 @@ The failure classifier achieved:
 - Groq API
 - LangChain
 - LangGraph
+- Thompson Sampling, UCB1, Epsilon-Greedy (multi-armed bandit algorithms)
 - scikit-learn
 - SQLite
 - Streamlit
@@ -135,7 +137,8 @@ python -m streamlit run dashboard/app.py
 
 The dashboard includes:
 
-- Live simulation across Adaptive UCB1 and baseline methods.
+- Live simulation across Thompson Sampling, UCB1, Epsilon-Greedy, and baseline methods with cumulative success rate and regret curve visualizations.
+- Algorithm Race tab with live animated comparison of all 3 bandit algorithms competing on the same failure sequence.
 - Strategy learning heatmap for `(failure_type, recovery_strategy)` success rates.
 - Failure classifier metrics and interactive prediction demo.
 - Live agent trace showing failure detection, classification, recovery selection, and outcome.
