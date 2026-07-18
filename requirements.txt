@@ -1,0 +1,12 @@
+langchain
+langgraph
+langchain-groq
+scikit-learn
+streamlit
+python-dotenv
+pandas
+numpy
+matplotlib
+joblib
+plotly
+scipy
