@@ -1,0 +1,289 @@
+{
+  "windowSize": 25,
+  "totalEpisodes": 500,
+  "stationary": [
+    {
+      "episodeStart": 1,
+      "episodeEnd": 25,
+      "episodeMid": 13,
+      "windowSuccessRate": 0.4448,
+      "cumulativeSuccessRate": 0.4448
+    },
+    {
+      "episodeStart": 26,
+      "episodeEnd": 50,
+      "episodeMid": 38,
+      "windowSuccessRate": 0.5016,
+      "cumulativeSuccessRate": 0.4732
+    },
+    {
+      "episodeStart": 51,
+      "episodeEnd": 75,
+      "episodeMid": 63,
+      "windowSuccessRate": 0.5072,
+      "cumulativeSuccessRate": 0.4845
+    },
+    {
+      "episodeStart": 76,
+      "episodeEnd": 100,
+      "episodeMid": 88,
+      "windowSuccessRate": 0.5528,
+      "cumulativeSuccessRate": 0.5016
+    },
+    {
+      "episodeStart": 101,
+      "episodeEnd": 125,
+      "episodeMid": 113,
+      "windowSuccessRate": 0.5648,
+      "cumulativeSuccessRate": 0.5142
+    },
+    {
+      "episodeStart": 126,
+      "episodeEnd": 150,
+      "episodeMid": 138,
+      "windowSuccessRate": 0.5944,
+      "cumulativeSuccessRate": 0.5276
+    },
+    {
+      "episodeStart": 151,
+      "episodeEnd": 175,
+      "episodeMid": 163,
+      "windowSuccessRate": 0.5824,
+      "cumulativeSuccessRate": 0.5354
+    },
+    {
+      "episodeStart": 176,
+      "episodeEnd": 200,
+      "episodeMid": 188,
+      "windowSuccessRate": 0.592,
+      "cumulativeSuccessRate": 0.5425
+    },
+    {
+      "episodeStart": 201,
+      "episodeEnd": 225,
+      "episodeMid": 213,
+      "windowSuccessRate": 0.6192,
+      "cumulativeSuccessRate": 0.551
+    },
+    {
+      "episodeStart": 226,
+      "episodeEnd": 250,
+      "episodeMid": 238,
+      "windowSuccessRate": 0.6112,
+      "cumulativeSuccessRate": 0.557
+    },
+    {
+      "episodeStart": 251,
+      "episodeEnd": 275,
+      "episodeMid": 263,
+      "windowSuccessRate": 0.6,
+      "cumulativeSuccessRate": 0.5609
+    },
+    {
+      "episodeStart": 276,
+      "episodeEnd": 300,
+      "episodeMid": 288,
+      "windowSuccessRate": 0.6544,
+      "cumulativeSuccessRate": 0.5687
+    },
+    {
+      "episodeStart": 301,
+      "episodeEnd": 325,
+      "episodeMid": 313,
+      "windowSuccessRate": 0.612,
+      "cumulativeSuccessRate": 0.5721
+    },
+    {
+      "episodeStart": 326,
+      "episodeEnd": 350,
+      "episodeMid": 338,
+      "windowSuccessRate": 0.6384,
+      "cumulativeSuccessRate": 0.5768
+    },
+    {
+      "episodeStart": 351,
+      "episodeEnd": 375,
+      "episodeMid": 363,
+      "windowSuccessRate": 0.6712,
+      "cumulativeSuccessRate": 0.5831
+    },
+    {
+      "episodeStart": 376,
+      "episodeEnd": 400,
+      "episodeMid": 388,
+      "windowSuccessRate": 0.6368,
+      "cumulativeSuccessRate": 0.5865
+    },
+    {
+      "episodeStart": 401,
+      "episodeEnd": 425,
+      "episodeMid": 413,
+      "windowSuccessRate": 0.6944,
+      "cumulativeSuccessRate": 0.5928
+    },
+    {
+      "episodeStart": 426,
+      "episodeEnd": 450,
+      "episodeMid": 438,
+      "windowSuccessRate": 0.6576,
+      "cumulativeSuccessRate": 0.5964
+    },
+    {
+      "episodeStart": 451,
+      "episodeEnd": 475,
+      "episodeMid": 463,
+      "windowSuccessRate": 0.6816,
+      "cumulativeSuccessRate": 0.6009
+    },
+    {
+      "episodeStart": 476,
+      "episodeEnd": 500,
+      "episodeMid": 488,
+      "windowSuccessRate": 0.6848,
+      "cumulativeSuccessRate": 0.6051
+    }
+  ],
+  "disrupted": [
+    {
+      "episodeStart": 1,
+      "episodeEnd": 25,
+      "episodeMid": 13,
+      "windowSuccessRate": 0.4424,
+      "cumulativeSuccessRate": 0.4424
+    },
+    {
+      "episodeStart": 26,
+      "episodeEnd": 50,
+      "episodeMid": 38,
+      "windowSuccessRate": 0.4888,
+      "cumulativeSuccessRate": 0.4656
+    },
+    {
+      "episodeStart": 51,
+      "episodeEnd": 75,
+      "episodeMid": 63,
+      "windowSuccessRate": 0.5184,
+      "cumulativeSuccessRate": 0.4832
+    },
+    {
+      "episodeStart": 76,
+      "episodeEnd": 100,
+      "episodeMid": 88,
+      "windowSuccessRate": 0.5576,
+      "cumulativeSuccessRate": 0.5018
+    },
+    {
+      "episodeStart": 101,
+      "episodeEnd": 125,
+      "episodeMid": 113,
+      "windowSuccessRate": 0.5784,
+      "cumulativeSuccessRate": 0.5171
+    },
+    {
+      "episodeStart": 126,
+      "episodeEnd": 150,
+      "episodeMid": 138,
+      "windowSuccessRate": 0.5688,
+      "cumulativeSuccessRate": 0.5257
+    },
+    {
+      "episodeStart": 151,
+      "episodeEnd": 175,
+      "episodeMid": 163,
+      "windowSuccessRate": 0.5816,
+      "cumulativeSuccessRate": 0.5337
+    },
+    {
+      "episodeStart": 176,
+      "episodeEnd": 200,
+      "episodeMid": 188,
+      "windowSuccessRate": 0.5936,
+      "cumulativeSuccessRate": 0.5412
+    },
+    {
+      "episodeStart": 201,
+      "episodeEnd": 225,
+      "episodeMid": 213,
+      "windowSuccessRate": 0.604,
+      "cumulativeSuccessRate": 0.5482
+    },
+    {
+      "episodeStart": 226,
+      "episodeEnd": 250,
+      "episodeMid": 238,
+      "windowSuccessRate": 0.6144,
+      "cumulativeSuccessRate": 0.5548
+    },
+    {
+      "episodeStart": 251,
+      "episodeEnd": 275,
+      "episodeMid": 263,
+      "windowSuccessRate": 0.5392,
+      "cumulativeSuccessRate": 0.5534
+    },
+    {
+      "episodeStart": 276,
+      "episodeEnd": 300,
+      "episodeMid": 288,
+      "windowSuccessRate": 0.5736,
+      "cumulativeSuccessRate": 0.5551
+    },
+    {
+      "episodeStart": 301,
+      "episodeEnd": 325,
+      "episodeMid": 313,
+      "windowSuccessRate": 0.5632,
+      "cumulativeSuccessRate": 0.5557
+    },
+    {
+      "episodeStart": 326,
+      "episodeEnd": 350,
+      "episodeMid": 338,
+      "windowSuccessRate": 0.6056,
+      "cumulativeSuccessRate": 0.5593
+    },
+    {
+      "episodeStart": 351,
+      "episodeEnd": 375,
+      "episodeMid": 363,
+      "windowSuccessRate": 0.5904,
+      "cumulativeSuccessRate": 0.5613
+    },
+    {
+      "episodeStart": 376,
+      "episodeEnd": 400,
+      "episodeMid": 388,
+      "windowSuccessRate": 0.6192,
+      "cumulativeSuccessRate": 0.5649
+    },
+    {
+      "episodeStart": 401,
+      "episodeEnd": 425,
+      "episodeMid": 413,
+      "windowSuccessRate": 0.6,
+      "cumulativeSuccessRate": 0.567
+    },
+    {
+      "episodeStart": 426,
+      "episodeEnd": 450,
+      "episodeMid": 438,
+      "windowSuccessRate": 0.608,
+      "cumulativeSuccessRate": 0.5693
+    },
+    {
+      "episodeStart": 451,
+      "episodeEnd": 475,
+      "episodeMid": 463,
+      "windowSuccessRate": 0.6144,
+      "cumulativeSuccessRate": 0.5717
+    },
+    {
+      "episodeStart": 476,
+      "episodeEnd": 500,
+      "episodeMid": 488,
+      "windowSuccessRate": 0.6328,
+      "cumulativeSuccessRate": 0.5747
+    }
+  ],
+  "shiftEpisode": 250
+}

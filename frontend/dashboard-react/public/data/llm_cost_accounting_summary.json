@@ -1,0 +1,29 @@
+[
+  {
+    "family":"google-gemini",
+    "n_samples":21,
+    "n_lower_bound_only":0,
+    "total_prompt_tokens":11340,
+    "total_completion_tokens":1534,
+    "total_tokens":12874,
+    "total_estimated_cost_usd":0.0017476
+  },
+  {
+    "family":"groq-llama",
+    "n_samples":21,
+    "n_lower_bound_only":2,
+    "total_prompt_tokens":11235,
+    "total_completion_tokens":1507,
+    "total_tokens":12742,
+    "total_estimated_cost_usd":0.00068231
+  },
+  {
+    "family":"nvidia-mistral-nemotron",
+    "n_samples":21,
+    "n_lower_bound_only":0,
+    "total_prompt_tokens":10920,
+    "total_completion_tokens":1541,
+    "total_tokens":12461,
+    "total_estimated_cost_usd":null
+  }
+]

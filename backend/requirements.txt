@@ -1,0 +1,16 @@
+langchain
+langgraph
+langchain-groq
+scikit-learn
+streamlit
+python-dotenv
+pandas
+numpy
+matplotlib
+joblib
+tqdm
+plotly
+scipy
+fastapi
+uvicorn[standard]
+pytest

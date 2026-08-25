@@ -1,0 +1,7 @@
+# Real (or test-generated) participant data must never be committed --
+# only the reviewed, anonymised export artifact (produced by
+# SubmissionStore.export_anonymised) is a release candidate, and even
+# that should be committed deliberately, not automatically.
+data/
+__pycache__/
+*.pyc

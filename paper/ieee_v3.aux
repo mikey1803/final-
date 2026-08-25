@@ -1,0 +1,73 @@
+\relax 
+\citation{cemri,zhu,song}
+\citation{lai}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Where the classifier sits. Policies observe only the predicted type $t'$ and never the true type $t$, which is the structural fact motivating Section~\ref {sec:noise}.}}{1}{}\protected@file@percent }
+\newlabel{fig:pipeline}{{1}{1}{}{figure.1}{}}
+\citation{cemri}
+\citation{zhu}
+\citation{song}
+\citation{reflexion}
+\citation{critic}
+\citation{paladin}
+\citation{lai}
+\citation{auer}
+\citation{thompson}
+\citation{russo}
+\citation{kirschner}
+\citation{kim}
+\citation{maillard,hong}
+\@writefile{toc}{\contentsline {section}{\numberline {II}Related Work}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {III}Setup}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Environments and policies}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}The predictor being extended}{2}{}\protected@file@percent }
+\newlabel{eq:oracle}{{1}{2}{}{equation.1}{}}
+\newlabel{eq:policy}{{2}{2}{}{equation.2}{}}
+\newlabel{eq:rts}{{3}{2}{}{equation.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Crossover Under Classifier Noise}{3}{}\protected@file@percent }
+\newlabel{sec:noise}{{IV}{3}{}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}The effective mixture}{3}{}\protected@file@percent }
+\newlabel{eq:pprime}{{4}{3}{}{equation.4}{}}
+\newlabel{eq:peff}{{5}{3}{}{equation.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Static and adaptive sides}{3}{}\protected@file@percent }
+\newlabel{eq:rhoconf}{{6}{3}{}{equation.6}{}}
+\newlabel{eq:rtsconf}{{7}{3}{}{equation.7}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Two channels, two checks}{3}{}\protected@file@percent }
+\newlabel{eq:dceil}{{8}{3}{}{equation.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Assumptions}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {V}Protocol}{3}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Empirical confusion matrix of the trained classifier, $\Pr (\text  {predicted} \mid \text  {true})$, mean diagonal accuracy 0.939. Five of seven rows are effectively identity rows.}}{4}{}\protected@file@percent }
+\newlabel{fig:confusion}{{2}{4}{}{figure.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Results}{4}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-A}}Decomposition and static-side validation}{4}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Decomposition at the measured classifier and static-side validation. (a) Ceiling loss is about six times larger than learnability loss. (b) The error is concentrated: one row carries roughly $0.36$ of the off-diagonal mass while five rows are identity rows. (c) The exact static form of \eqref  {eq:rhoconf} tracks simulation across six noise levels $\beta $, 50 seeds each, median absolute error 0.93 percentage points.}}{4}{}\protected@file@percent }
+\newlabel{fig:decomp}{{3}{4}{}{figure.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-B}}The horizon itself}{4}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces The crossover on the canonical environment. Classifier noise steepens the static baseline by 58\% but also flattens the learner's curve, so the horizon moves 2.4\% later rather than earlier.}}{5}{}\protected@file@percent }
+\newlabel{fig:crossover}{{4}{5}{}{figure.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces A better classifier does not imply an earlier crossover. $T^{*}$ diverges at the accuracy where the bucket's best arm flips and its top-two gap vanishes.}}{5}{}\protected@file@percent }
+\newlabel{fig:nonmono}{{5}{5}{}{figure.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-C}}Held-out evaluation of the constant}{5}{}\protected@file@percent }
+\newlabel{sec:heldout}{{\mbox  {VI-C}}{5}{}{subsection.6.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Pre-registered held-out evaluation on the eight TEST cells. (a) Fitted constants with 95\% bootstrap intervals; both sit inside the pre-committed range and the in-condition fit is the less stable of the two. (b) Branch A per-cell signed relative error, a spread no scalar constant can absorb.}}{5}{}\protected@file@percent }
+\newlabel{fig:heldout}{{6}{5}{}{figure.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {VI-D}}Drift: a negative result}{5}{}\protected@file@percent }
+\bibcite{cemri}{1}
+\bibcite{zhu}{2}
+\bibcite{song}{3}
+\bibcite{lai}{4}
+\bibcite{reflexion}{5}
+\bibcite{critic}{6}
+\bibcite{paladin}{7}
+\bibcite{auer}{8}
+\bibcite{thompson}{9}
+\bibcite{russo}{10}
+\bibcite{kirschner}{11}
+\bibcite{kim}{12}
+\bibcite{maillard}{13}
+\bibcite{hong}{14}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces The drift study. (a) Three pre-registered candidate statistics: C1 is insufficient, C2 was retracted for circularity, C3 fits well but its sign accuracy only equals the majority-class baseline. (b) The one qualitative finding that survives: adaptive advantage is negative exactly where staleness damage reverts and positive where it does not.}}{6}{}\protected@file@percent }
+\newlabel{fig:drift}{{7}{6}{}{figure.7}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {VII}Conclusion}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{References}{6}{}\protected@file@percent }
+\gdef \@abspage@last{6}

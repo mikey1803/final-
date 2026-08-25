@@ -1,0 +1,2 @@
+lambda_cost,cc_success_rate,cc_success_ci,cc_avg_cost,cc_cost_ci,ts_success_rate,ts_success_ci,ts_avg_cost,ts_cost_ci,success_cohens_d,success_p_value,cost_cohens_d,cost_p_value
+0.6,0.6950000000000002,"[0.6704, 0.7196]",1.7448666666666666,"[1.7007, 1.7890]",0.6676666666666667,"[0.6468, 0.6885]",2.0021999999999998,"[1.9764, 2.0280]",-0.4287845094404308,0.09455771024771295,2.547626008407431,6.822877784741264e-11

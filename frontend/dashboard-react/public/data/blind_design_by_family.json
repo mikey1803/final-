@@ -1,0 +1,35 @@
+[
+  {
+    "family":"google-gemini",
+    "n_parsed":21,
+    "n_parse_failures":0,
+    "n_network_timeouts":0,
+    "n_rate_limited":0,
+    "n_distinct_mappings":2,
+    "bootstrap_ci_degenerate":true,
+    "q_mean":6.2857142857,
+    "q_median":6.0
+  },
+  {
+    "family":"groq-llama",
+    "n_parsed":19,
+    "n_parse_failures":2,
+    "n_network_timeouts":0,
+    "n_rate_limited":0,
+    "n_distinct_mappings":15,
+    "bootstrap_ci_degenerate":false,
+    "q_mean":4.6315789474,
+    "q_median":5.0
+  },
+  {
+    "family":"nvidia-mistral-nemotron",
+    "n_parsed":21,
+    "n_parse_failures":0,
+    "n_network_timeouts":0,
+    "n_rate_limited":0,
+    "n_distinct_mappings":6,
+    "bootstrap_ci_degenerate":false,
+    "q_mean":6.2857142857,
+    "q_median":6.0
+  }
+]

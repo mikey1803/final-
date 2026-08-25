@@ -133,7 +133,7 @@ The Live Simulation tab runs the main comparison experiment from the dashboard. 
 Charts and tables:
 
 - Summary table: Shows cumulative success rate, late-stage success rate, total successes, and final cumulative regret for each method. A good result is a learning method with a high late-stage success rate and lower regret than the baselines.
-- Significance table: Shows paired t-test results comparing late-stage performance. A good result shows positive mean differences for the top adaptive method and `p < 0.05`, meaning the improvement is unlikely to be random noise.
+- Significance table: Shows paired t-test results comparing late-stage performance. A good result shows positive mean differences for the top adaptive method and `p < 0.05` -- but per `docs/statistics.md`'s (and Task 13's `docs/statistics_registry.md`'s) documented caveat, this p-value comes from re-running the SAME deterministic-given-its-seed simulator across trial seeds, not from sampling a real population, so it trends toward zero with more trials for any nonzero true gap, however small. Read it as "this pipeline's trial count was enough to distinguish the two methods numerically," not as "the improvement is unlikely to be random noise" in the population-inference sense the phrase usually implies -- the effect size (Cohen's d / Cliff's delta) and bootstrap CI are the load-bearing evidence, not the p-value.
 - Cumulative success chart: Shows how each method's average success rate changes over episodes. A good result is a learning method rising over time and separating from static baselines.
 - Cumulative regret curve: Shows how much avoidable loss accumulates over time. A good result is a flatter curve for the best adaptive method, meaning it is learning the better recovery choices faster.
 - Interactive Plotly line chart: Shows the same success-rate trend in an interactive format. The fixed color map keeps methods visually consistent with the Matplotlib chart.
@@ -203,7 +203,7 @@ Validated late-stage success rates:
 | Random | 41.87% |
 | Naive Retry | 31.23% |
 
-All differences versus the top method, Thompson Sampling, were statistically significant at `p < 0.05`.
+All differences versus the top method, Thompson Sampling, returned `p < 0.05` from this pipeline's paired t-tests -- see the caveat above (§3, Live Simulation): this reflects the pipeline's simulation-seed count, not population-level inferential significance. Also note this specific table predates the Fixed Rule v1->v2 blind-design correction (`docs/PAPER_PREP.md` §3 Phase 4, §6 "Phase 2's Fixed Rule column is stale") -- its Fixed Rule row (52.60%) is not the paper's current headline number.
 
 Classifier results:
 

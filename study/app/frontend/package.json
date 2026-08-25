@@ -1,0 +1,20 @@
+{
+  "name": "blind-design-study",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Participant-facing web app for the blind-design elicitation study (Task 11). Deliberately minimal and standalone -- no Tailwind/animation/charting dependencies -- so it stays easy to audit and deploy to a public URL. See study/protocol.md.",
+  "scripts": {
+    "dev": "vite --port 5180",
+    "build": "vite build",
+    "preview": "vite preview --port 5180"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.0.0"
+  }
+}

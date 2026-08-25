@@ -1,0 +1,174 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+/* Monochrome + accent design system tokens — same token names as before (so
+   every existing bg-lav-.../text-lav-... class site-wide repaints from this
+   one block). The base (bg/surface/border/text/muted) is a true near-black
+   graphite scale with no purple undertone anywhere; lavender exists in
+   exactly one place, --color-lav-primary, and is the only accent hue in the
+   whole UI — used strictly for active/interactive state, never decoration. */
+@theme {
+  --color-lav-bg: #09090B;
+  --color-lav-surface: #131315;
+  --color-lav-surface-raised: #1C1C1F;
+  --color-lav-border: rgba(255, 255, 255, 0.08);
+  --color-lav-primary: #8B5CF6;
+  --color-lav-primary-hover: #7C3AED;
+  /* Second stop for the signature accent gradient (violet -> fuchsia) —
+     used deliberately on primary CTAs, active nav state, and the ambient
+     glow, never as a standalone flat color anywhere else. */
+  --color-lav-accent-2: #E879F9;
+  --color-lav-success: #8FCBA8;
+  --color-lav-cost: #E29A9A;
+  --color-lav-text: #EDEDEF;
+  --color-lav-muted: #97979F;
+  --color-lav-sidebar: #131315;
+  --color-lav-sidebar-text: #EDEDEF;
+  --color-lav-sidebar-muted: #A5A5AD;
+
+  /* These three used to be distinct per-nav-group brand hues (teal / amber /
+     emerald). Under the monochrome-plus-one-accent direction there is only
+     one accent in the system, so every former "group color" resolves to the
+     same lavender as --color-lav-primary — group identity now comes from
+     label/icon/position, not a rainbow of active-state colors. Kept as
+     separate tokens (rather than deleted) purely so every existing
+     bg-lav-teal/amber/live and GROUP_COLORS.* call site site-wide repaints
+     from here with zero component edits. --color-lav-success/--color-lav-cost
+     are untouched below — those encode an actual good/bad result, not
+     category branding, so they stay meaningful color, not decoration. */
+  --color-lav-teal: var(--color-lav-primary);
+  --color-lav-amber: var(--color-lav-primary);
+  --color-lav-live: var(--color-lav-primary);
+
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Explicit type scale (12/14/16/20/28/40/56) rather than Tailwind's
+     unexamined default — overriding Tailwind's own scale keys so every
+     existing text-sm/text-lg/text-3xl usage site-wide snaps to it. */
+  --text-xs: 0.75rem;     /* 12px */
+  --text-sm: 0.875rem;    /* 14px */
+  --text-base: 1rem;      /* 16px */
+  --text-lg: 1.25rem;     /* 20px */
+  --text-xl: 1.25rem;     /* 20px */
+  --text-2xl: 1.75rem;    /* 28px — display face floor */
+  --text-3xl: 1.75rem;    /* 28px */
+  --text-4xl: 2.5rem;     /* 40px */
+  --text-5xl: 2.5rem;     /* 40px */
+  --text-6xl: 3.5rem;     /* 56px */
+  --text-7xl: 3.5rem;     /* 56px */
+}
+
+@layer base {
+  html, body, #root {
+    background-color: var(--color-lav-bg);
+    color: var(--color-lav-text);
+    font-family: var(--font-sans);
+    height: 100%;
+  }
+  /* Display face only ever appears at 28px+ (text-2xl and up) — small
+     in-card section headers (h3-h6) get Inter, not Space Grotesk. */
+  h1, h2 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    color: var(--color-lav-text);
+    /* Optical sizing: display type reads too loose at negative tracking's
+       absence once it's this large, and wants tighter leading than body
+       copy. HeroSection's own leading-[1.05] class still wins over this
+       element selector where it's set explicitly. */
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    color: var(--color-lav-text);
+  }
+  code, pre {
+    font-family: var(--font-mono);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The one signature accent, as a gradient rather than a flat fill — used
+   deliberately on primary CTAs, active nav pills, and the ambient glow.
+   Still "one accent" in spirit (violet is the identity), just given depth
+   instead of a single flat hue everywhere. */
+.accent-gradient {
+  background-image: linear-gradient(135deg, var(--color-lav-primary), var(--color-lav-accent-2));
+}
+.accent-gradient-text {
+  background-image: linear-gradient(135deg, var(--color-lav-primary), var(--color-lav-accent-2));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Sticky-header bottom edge: a soft fade where floating chrome overlaps
+   scrolling content, instead of a hard 1px divider that reads as a seam. */
+.chrome-edge {
+  position: relative;
+}
+.chrome-edge::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -10px;
+  height: 10px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.07), transparent);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .material-chrome {
+    background-color: rgba(9, 9, 11, 0.97) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .chrome-edge::after {
+    display: none;
+  }
+}
+
+/* Story page: a fixed layer behind all content that drifts through neutral
+   graphite shades as --scroll-gradient-pos moves 0%->100% (see
+   useScrollGradient.js). Monochrome + one accent: every stop is now the same
+   near-black-to-lavender wash at varying strength, not a different hue per
+   section — restraint over rainbow. background-size taller than the
+   viewport + background-position drift keeps this to a single cheap
+   composited property, no layout/paint cost per frame. */
+.scroll-gradient-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: linear-gradient(
+    180deg,
+    #09090b 0%,
+    rgba(139, 92, 246, 0.07) 14%,
+    #0d0d10 26%,
+    rgba(232, 121, 249, 0.06) 42%,
+    #0d0d10 54%,
+    rgba(139, 92, 246, 0.07) 68%,
+    #0d0d10 82%,
+    rgba(232, 121, 249, 0.08) 94%,
+    #0d0d10 100%
+  );
+  background-size: 100% 320%;
+  background-position: 50% var(--scroll-gradient-pos, 18%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-gradient-bg {
+    background-position: 50% 32% !important;
+  }
+}

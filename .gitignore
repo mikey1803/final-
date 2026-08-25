@@ -23,7 +23,15 @@ env/
 *.swo
 
 # SQLite databases
-data/*.db
+backend/data/*.db
+
+# Scratch / temporary analysis artifacts (never a deliverable, never committed)
+backend/scratch/
+
+# Experiment output (CSVs/figures/tables from dozens of research phases) -
+# tens of thousands of files, regenerable from backend/experiments/ and
+# backend/reproduce.py. Not a deliverable to keep in git history.
+backend/results/
 
 # OS
 .DS_Store

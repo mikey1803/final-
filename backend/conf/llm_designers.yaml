@@ -1,0 +1,80 @@
+# Model configuration for experiments/llm_designers.py (Task 11).
+#
+# No model names are hardcoded in llm_designers.py -- every model this
+# script can query is listed here. Each entry names a "family" (the
+# distinct vendor/model lineage, for the paper's "at least three
+# distinct families" requirement) and a "provider_type" (which of the
+# two generic HTTP client shapes llm_designers.py knows how to speak --
+# "openai_compatible" covers Groq/OpenAI/Together/Fireworks/OpenRouter/
+# DeepSeek/Mistral, which all implement the same chat-completions request
+# shape; "anthropic" covers Claude's distinct native API shape).
+#
+# A model is SKIPPED (not silently run with a substitute) if the API key
+# named by api_key_env is not set in the environment -- see
+# llm_designers.py's module docstring and docs/experiments/human_study.md
+# for exactly which families were actually queryable in this run.
+#
+# supports_seed (optional, default true): set to false for an
+# openai_compatible provider that rejects an unrecognised "seed" field
+# outright (HTTP 400) rather than silently ignoring it -- confirmed for
+# Google's Gemini OpenAI-compatible endpoint. When false, the seed is
+# omitted from the actual request AND recorded as null in the output
+# (never a fabricated "intended" seed value).
+
+models:
+  - family: "groq-llama"
+    provider_type: "openai_compatible"
+    base_url: "https://api.groq.com/openai/v1"
+    model: "llama-3.1-8b-instant"
+    api_key_env: "GROQ_API_KEY"
+    max_tokens: 512
+    n_samples_temperature_1: 20
+    n_samples_temperature_0: 1
+
+  # NOTE: "gemini-2.0-flash" was the original choice here but this
+  # environment's Google key returns HTTP 429 "limit: 0" (no free-tier
+  # quota provisioned) for every dated/versioned Gemini model tried
+  # (gemini-2.0-flash, gemini-2.0-flash-lite, gemini-2.0-flash-001,
+  # gemini-2.5-pro, gemini-pro-latest) and HTTP 404 for older ones
+  # (gemini-1.5-*, gemini-2.5-flash*, "no longer available to new
+  # users") -- an account/project-side condition, not a code bug (the
+  # request path is identical to the two working providers). The
+  # "-latest" ALIAS models are exempt from that zero quota and DO work:
+  # "gemini-flash-latest" returned HTTP 200 but truncated to empty
+  # content at max_tokens=512 (it appears to spend tokens on internal
+  # reasoning before the answer); "gemini-flash-lite-latest" returned
+  # HTTP 200 with real, parseable JSON content on the actual study
+  # prompt -- confirmed via a real API call, not merely a docs lookup.
+  - family: "google-gemini"
+    provider_type: "openai_compatible"
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+    model: "gemini-flash-lite-latest"
+    api_key_env: "GOOGLE_API_KEY"
+    max_tokens: 512
+    n_samples_temperature_1: 20
+    n_samples_temperature_0: 1
+    supports_seed: false  # confirmed via real API call: HTTP 400 "Unknown name \"seed\""
+
+  # NVIDIA NIM speaks the OpenAI-compatible chat-completions shape too, so
+  # this reuses provider_type "openai_compatible" rather than needing a
+  # third HTTP client. Model picked from NIM's catalog deliberately OUTSIDE
+  # the Llama lineage (Mistral's base model, not a Llama fine-tune) so this
+  # family is a genuinely distinct model family from "groq-llama" -- not
+  # just a distinct vendor serving a Llama derivative.
+  #
+  # NOTE: "mistralai/mixtral-8x7b-instruct-v0.1" was the original choice
+  # here but reached end-of-life on NIM's hosted endpoint on 2026-07-27
+  # (confirmed via a real API call returning HTTP 410 Gone with that exact
+  # date) -- replaced with "mistralai/mistral-nemotron", confirmed working
+  # via a real API call (HTTP 200, non-empty "content" field) on 2026-08-04.
+  - family: "nvidia-mistral-nemotron"
+    provider_type: "openai_compatible"
+    base_url: "https://integrate.api.nvidia.com/v1"
+    model: "mistralai/mistral-nemotron"
+    api_key_env: "NVIDIA_API_KEY"
+    max_tokens: 512
+    n_samples_temperature_1: 20
+    n_samples_temperature_0: 1
+
+max_parse_retries: 3
+request_timeout_seconds: 60

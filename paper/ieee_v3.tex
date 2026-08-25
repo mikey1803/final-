@@ -1,0 +1,658 @@
+%% ====================================================================
+%%  "When Does Adaptive Recovery Pay?"  --  v3, IEEE conference format
+%%
+%%  SINGLE FILE. Compiles on its own with no image files present:
+%%  every figure renders as a labelled placeholder box of the correct
+%%  size, so the page count is already final at 6 pages.
+%%
+%%  When the figure PDFs exist in ./figs/ , flip ONE switch:
+%%      \usefigsfalse   ->   \usefigstrue
+%%  The boxes are replaced by the real images and nothing reflows,
+%%  provided each figure is generated at the exact figsize given in
+%%  the accompanying generation prompt.
+%% ====================================================================
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[T1]{fontenc}
+
+%% -------- figure placeholder machinery -------------------------------
+\newif\ifusefigs
+\usefigstrue            % <-- set to \usefigstrue once figs/*.pdf exist
+
+\newcommand{\figph}[3]{%   #1 = width, #2 = height, #3 = file
+  \ifusefigs
+    \includegraphics[width=#1]{#3}%
+  \else
+    \fbox{\parbox[c][#2][c]{\dimexpr#1-2\fboxsep-2\fboxrule\relax}{%
+      \centering\footnotesize\color{gray}\texttt{\detokenize{#3}}\par
+      \vspace{2pt}[figure placeholder]}}%
+  \fi}
+%% ---------------------------------------------------------------------
+
+\begin{document}
+
+\title{When Does Adaptive Recovery Pay?\\
+Crossover-Horizon Prediction for Failure Recovery\\
+under a Noisy Failure Classifier}
+
+%% TODO: replace "Divina" with her full published name, add her e-mail,
+%%       and confirm the department line.
+\author{\IEEEauthorblockN{Pio Micheal}
+\IEEEauthorblockA{\textit{Dept. of Artificial Intelligence and Data Science}\\
+\textit{Karunya Institute of Technology and Sciences}\\
+Coimbatore, India\\
+piomicheal17@gmail.com}
+\and
+\IEEEauthorblockN{Divina}
+\IEEEauthorblockA{\textit{Dept. of Data Science and Cyber Security}\\
+\textit{Karunya Institute of Technology and Sciences}\\
+Coimbatore, India\\
+divina@karunya.edu}
+}
+
+\maketitle
+
+\begin{abstract}
+Tool-using agents fail in recurring and classifiable ways, and the choice of
+recovery strategy is increasingly treated as something to be learned rather
+than fixed in advance. A designer weighing a hand-written recovery table
+against an online learner needs to know at what deployment horizon the learner
+overtakes the table. Existing crossover analyses assume the policy observes the
+true failure type, which real systems do not provide; the policy sees a
+classifier's prediction. We reformulate the crossover problem under an
+arbitrary confusion matrix by mapping the strategy-success matrix into
+predicted-type space with an exact Bayes mixture, then separate the resulting
+degradation into a reward-ceiling channel and a learnability channel. At a
+classifier with 0.939 mean diagonal accuracy, ceiling loss exceeds learnability
+loss by roughly six to one. The two channels also work against each other:
+classifier noise raises the static table's regret rate by 58\% yet shifts the
+predicted crossover only from 3053 to 3126 episodes, and we show by
+construction that the horizon is not monotonic in classifier accuracy. The
+reformulation's free constant was tested under a protocol registered before the
+supporting data existed. The held-out ratio $R = 1.4729$ clears its
+pre-committed threshold of 1.5, but the bootstrap interval $[1.00, 9.55]$
+required by the same protocol does not confirm that the clearance is stable, so
+we report the component as partially supported.
+\end{abstract}
+
+\begin{IEEEkeywords}
+autonomous agents, failure recovery, multi-armed bandits, Thompson sampling,
+noisy context, pre-registration, negative results
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+Language agents that call external tools fail often enough that failure
+handling has become a design concern in its own right. Timeouts, tool
+exceptions, malformed outputs and lost context dominate the failure inventories
+of both deployed and benchmarked systems \cite{cemri,zhu,song}. The usual
+answer is a fixed mapping $\pi$ from failure type to recovery strategy. Such
+tables are cheap and easy to inspect, and can be quite good, but they never
+improve; a table is exactly as good as its author's beliefs on the day it was
+written.
+
+The alternative is to treat each pair of failure type and recovery strategy as
+a bandit arm and learn its value from outcomes. Adaptation then costs
+exploration: early in a deployment the learner does worse than a good table
+because it is still paying to find out what works, so whether adaptation is
+worthwhile depends on how long the system will run. The designer wants a
+number, the horizon at which the two curves cross.
+
+A crossover predictor supplies that number. It computes the table's constant
+per-episode regret rate exactly, models the learner's cumulative regret with an
+asymptotic bound in the tradition of Lai and Robbins \cite{lai}, and solves for
+the point where the two meet. The construction assumes the policy observes the
+true failure type, and deployed systems do not supply one. Tracing the call
+chain of the framework studied here confirmed that no policy can read a true
+type; the context object has no such field, so every policy acts on a
+classifier's prediction (Fig.~\ref{fig:pipeline}). This is a property of the
+system rather than a modelling choice, and it means the unmodified predictor
+answers a question about a system nobody has.
+
+\begin{figure}[!t]
+\centering
+\figph{\columnwidth}{0.338\columnwidth}{figs/fig1_pipeline.pdf}
+\caption{Where the classifier sits. Policies observe only the predicted type
+$t'$ and never the true type $t$, which is the structural fact motivating
+Section~\ref{sec:noise}.}
+\label{fig:pipeline}
+\end{figure}
+
+This paper works through the resulting extension. We give an exact
+reformulation of the crossover problem under an arbitrary confusion matrix,
+using a Bayes mixture that carries the success matrix into predicted-type space
+and reduces to the original construction when the classifier is perfect. We
+decompose classifier-induced degradation into ceiling loss and gap shrinkage,
+measure both at a trained classifier's empirical matrix, and show that the
+predicted horizon is not monotonic in accuracy. We then evaluate the
+extension's one free constant on a 26-environment dataset generated after the
+evaluation protocol was committed. A companion study, pre-registered in the
+same way, asks whether the sign of adaptive advantage under drift reduces to a
+low-dimensional statistic; it does not, and we report that as a negative
+result. What we do not claim is that the extension makes the underlying
+asymptotic bound accurate: held-out absolute errors stay near 40--60\%, and the
+evaluation asks only whether the reformulation adds error on top of what the
+base bound already carries.
+
+\section{Related Work}
+
+Work on agent failure has moved from anecdote toward structured taxonomy,
+whether organised by multi-agent failure mode \cite{cemri}, by single-agent
+module with a debugger that isolates the earliest outcome-changing error
+\cite{zhu}, or by the complementary route of improving the environment rather
+than the agent \cite{song}. On the response side, Reflexion writes reflections
+on failed attempts into an episodic buffer \cite{reflexion}, CRITIC calls
+external tools to verify and revise the model's own output \cite{critic}, and
+PALADIN trains recovery behaviour from systematically injected tool failures
+\cite{paladin}.
+
+Our concern is different. We propose no new self-correction mechanism, and ask
+instead how a recovery-strategy selector should be evaluated against a static
+baseline once selection is treated as a bandit problem with persistent outcome
+memory. The underlying trade-off is classical: Lai and Robbins established the
+logarithmic lower bound \cite{lai}, Auer et al. showed logarithmic regret is
+achievable uniformly in time \cite{auer}, and Thompson sampling
+\cite{thompson}, whose crossover behaviour we study, has a modern treatment in
+Russo et al. \cite{russo}.
+
+The specific difficulty here, a learner conditioning on a corrupted view of the
+context, has an established literature. Kirschner and Krause study bandits in
+which the environment supplies a context distribution while the realisation
+stays hidden \cite{kirschner}; Kim et al. find that under noisy features the
+Bayes-optimal hypothesis can sit far from the underlying realizability function
+\cite{kim}; and latent bandits, where arm rewards are known conditional on an
+unobserved discrete state, are the closest structural analogue to a failure
+type the policy never sees \cite{maillard,hong}. Our mixture is a finite,
+discrete specialisation of the same marginalisation idea and we claim no
+novelty for it. Three things are ours: the corruption channel is a measured
+confusion matrix rather than an assumed noise model; the quantity of interest
+is a crossover horizon against a hand-written baseline, which is what a
+practitioner acts on, not a regret rate; and we treat the free multiplicative
+constant as an object to be calibrated and held-out tested rather than folded
+into $O(\cdot)$.
+
+\section{Setup}
+
+\subsection{Environments and policies}
+
+Failures come from $N = 7$ types and are recovered with one of $K = 6$
+strategies. The types are \texttt{tool\_timeout}, \texttt{tool\_error},
+\texttt{wrong\_tool\_selected}, \texttt{hallucinated\_output},
+\texttt{malformed\_output}, \texttt{context\_loss} and
+\texttt{ambiguous\_instruction}; the strategies are \texttt{retry},
+\texttt{replan}, \texttt{switch\_tool}, \texttt{re\_ground}, \texttt{verify}
+and \texttt{clarify}.
+
+An environment is a pair $(P, \pi)$. The matrix $P \in [0,1]^{N \times K}$
+gives the success probability $P[t,k]$ of strategy $k$ against true type $t$,
+with conditionally Bernoulli rewards. The mapping $\pi$ is a hand-authored
+table, and $p$ is the distribution over true types. Failures are injected into
+simulated episodes, classified, and recovered by a bandit selector whose
+outcomes persist across episodes.
+
+One environment, which we call canonical, has a hand-authored $P$ and a
+hand-authored $\pi$ agreeing with the row argmax of $P$ on six of seven types;
+we call this quality 6/7, a competent baseline rather than a straw man. The
+other 25 environments are sampled. Each row draws a uniform baseline in
+$[0.15, 0.55]$, then one randomly chosen strategy in that row is raised to the
+row maximum plus a fixed gap, capped at $0.95$; all results here use
+gap $= 0.20$. Those 25 reuse the canonical table instead of receiving one
+authored against their own $P$, so baseline quality across the sweep is
+uncontrolled, and in two environments the reused table matches none of the
+seven row argmaxes; the 6/7 figure describes the canonical environment only.
+Section~\ref{sec:heldout} returns to this.
+
+\subsection{The predictor being extended}
+
+We restate the base construction so the paper stands on its own. Write
+\begin{equation}
+\mathrm{oracle}(P, p) = \sum_{t} p[t] \max_{k} P[t,k],
+\label{eq:oracle}
+\end{equation}
+where $t \in \{1,\dots,N\}$ indexes the true failure type, $k \in
+\{1,\dots,K\}$ indexes the recovery strategy, $p[t]$ is the probability that an
+episode's failure is of type $t$, and $P[t,k]$ is the probability that strategy
+$k$ recovers a type-$t$ failure; $\mathrm{oracle}(P,p)$ is thus the per-episode
+success rate of a policy that always plays the best strategy for the true type.
+Correspondingly,
+\begin{equation}
+\mathrm{policy}(P, \pi, p) = \sum_{t} p[t]\, P[t, \pi(t)],
+\label{eq:policy}
+\end{equation}
+where $\pi(t) \in \{1,\dots,K\}$ is the strategy the hand-written table assigns
+to type $t$, so $\mathrm{policy}(P,\pi,p)$ is the table's per-episode success
+rate.
+
+The table's per-episode regret rate $\rho = \mathrm{oracle}(P,p) -
+\mathrm{policy}(P,\pi,p)$ is constant, so its cumulative regret is exactly
+$\rho T$. The learner's cumulative regret is modelled by a Lai--Robbins-style
+bound in KL form,
+\begin{equation}
+R_{\mathrm{TS}}(T) = c\,N \sum_{t} p[t]
+\!\!\sum_{k\,:\,P[t,k] < P[t,k_t^{*}]}\!\!
+\frac{\log\!\big(\max(T/N, 1)\big)}{\mathrm{KL}\big(P[t,k],\, P[t,k_t^{*}]\big)},
+\label{eq:rts}
+\end{equation}
+where $T$ is the deployment horizon in episodes, $k_t^{*} = \arg\max_k P[t,k]$
+is the best strategy for type $t$, the inner sum runs over the strictly
+suboptimal strategies in row $t$, $\mathrm{KL}(a,b)$ is the Bernoulli
+divergence clipped away from 0 and 1 for numerical stability, $N$ is the number
+of types, and $c > 0$ is a free multiplicative constant. The crossover horizon
+$T^{*}$ solves $R_{\mathrm{TS}}(T) = \rho T$. The constant $c$ has no
+closed-form value for a given problem instance and must be fitted; under
+confusion we write it $\kappa$. It is the single free parameter whose
+transferability we test in Section~\ref{sec:heldout}, and everything downstream
+of it is calibration rather than proof.
+
+Let $\mathrm{confusion}[t,t'] = \Pr(\text{predicted } t' \mid \text{true } t)$.
+The base predictor implicitly sets this to the identity matrix $I$. Two
+questions follow. First, what is the right crossover prediction once the policy
+conditions on $t'$? This turns out to have an exact answer on the static side
+and only an approximate one on the adaptive side. Second, does a constant
+fitted under one classifier condition transfer to another? If a $\kappa$ fitted
+on perfect-classifier data predicts noisy held-out cells about as well as one
+fitted directly on noisy data, the reformulation has absorbed the classifier
+effect and the remaining error is inherited. If not, the reformulation is
+adding error of its own. Separating these requires held-out data and a decision
+rule fixed before looking.
+
+\section{Crossover Under Classifier Noise}
+\label{sec:noise}
+
+\subsection{The effective mixture}
+
+Marginalising over true types gives the predicted-type distribution
+\begin{equation}
+p'[t'] = \sum_{t} p[t]\, \mathrm{confusion}[t,t'],
+\label{eq:pprime}
+\end{equation}
+where $t'$ indexes the type the classifier reports,
+$\mathrm{confusion}[t,t']$ is the probability that a true type $t$ is reported
+as $t'$, and $p'[t']$ is therefore the probability that an episode lands in
+predicted bucket $t'$. Bayes' rule inside each bucket gives the effective
+success probability of strategy $k$ given a prediction of $t'$:
+\begin{equation}
+P_{\mathrm{eff}}[t',k] = \frac{\sum_{t} p[t]\,\mathrm{confusion}[t,t']\,P[t,k]}
+{p'[t']},
+\label{eq:peff}
+\end{equation}
+where the numerator sums the contribution of every true type that can be
+reported as $t'$, weighted by how often that happens, and the denominator
+normalises by the bucket's total mass, so $P_{\mathrm{eff}}[t',k]$ is the
+probability that strategy $k$ succeeds when the classifier says $t'$.
+
+Both are exact and both collapse to $p' = p$, $P_{\mathrm{eff}} = P$ at
+$\mathrm{confusion} = I$. Equation~\eqref{eq:peff} is the object the rest of
+the extension is built on: given that the classifier said $t'$, how well does
+strategy $k$ really work, averaged over what the type actually was.
+
+\subsection{Static and adaptive sides}
+
+The static side composes two exact functions,
+\begin{equation}
+\rho_{\mathrm{conf}} = \mathrm{oracle}(P,p) - \sum_{t}\sum_{t'}
+p[t]\,\mathrm{confusion}[t,t']\,P[t,\pi(t')],
+\label{eq:rhoconf}
+\end{equation}
+where $\pi(t')$ is the strategy the table fires on seeing the \emph{predicted}
+type $t'$, while $P[t,\pi(t')]$ scores that strategy against the \emph{true}
+type $t$; $\rho_{\mathrm{conf}}$ is thus the table's per-episode regret rate
+once its input is corrupted, and it is exact rather than asymptotic. The
+adaptive side reuses \eqref{eq:rts} unmodified, evaluated on the mixture,
+\begin{equation}
+R^{\mathrm{conf}}_{\mathrm{TS}}(T) =
+R_{\mathrm{TS}}(P_{\mathrm{eff}}, T, N, p', \kappa),
+\label{eq:rtsconf}
+\end{equation}
+where $P_{\mathrm{eff}}$ and $p'$ replace $P$ and $p$ from \eqref{eq:rts}, $N$
+is unchanged, and $\kappa$ is the fitted constant playing the role of $c$. The
+horizon under confusion solves $R^{\mathrm{conf}}_{\mathrm{TS}}(T) =
+\rho_{\mathrm{conf}} T$.
+
+This is its own routine rather than a wrapper on the base solver, because it
+mixes index spaces: $\rho_{\mathrm{conf}}$ lives in true-type space while the
+regret term lives in predicted-type space. Unit tests confirm that at
+$\mathrm{confusion} = I$ the extension reproduces the base solver bit for bit,
+so it is a strict generalisation rather than a parallel implementation that
+happens to agree.
+
+\subsection{Two channels, two checks}
+
+Classifier noise does damage in two ways that need not move together. Merging
+true types into indistinguishable buckets destroys information and lowers the
+achievable ceiling whatever the policy does,
+\begin{equation}
+\Delta_{\mathrm{ceil}} = \mathrm{oracle}(P,p) -
+\mathrm{oracle}(P_{\mathrm{eff}}, p'),
+\label{eq:dceil}
+\end{equation}
+where the first term is the best achievable per-episode success rate with
+perfect type information and the second is the best achievable rate once types
+have been merged into predicted buckets, so $\Delta_{\mathrm{ceil}} \geq 0$
+measures reward permanently lost to merging, with equality exactly at
+$\mathrm{confusion} = I$. Merging also changes the gap between the best and
+second-best action inside each bucket, which changes how hard the arm is to
+identify. We report the mean shrinkage of that top-two gap across buckets,
+computed as an unweighted mean over contributing true rows. The first is a
+ceiling effect, the second a learnability effect.
+
+Two checks guard the construction. The first asks whether a bucket's best
+action under $P_{\mathrm{eff}}$ could be optimal for none of the true types
+feeding it; it does not fire at our measured confusion, and a constructed
+three-type example confirms it does fire when its structural condition holds.
+The second concerns monotonicity: while $\rho_{\mathrm{conf}}$ and
+$\Delta_{\mathrm{ceil}}$ are provably monotonic in classifier accuracy,
+$T^{*}$ is not. A two-type, two-strategy unit test has a bucket whose best arm
+changes identity as accuracy crosses a threshold, making its top-two gap
+V-shaped and zero at the flip, whatever $\kappa$ is.
+
+\subsection{Assumptions}
+
+Five assumptions carry the extension and they are not equally safe. A1, the
+predicted-type bucket structure, was verified by tracing the implementation;
+A2, conditionally Bernoulli rewards, is inherited unchanged. A3, a stationary
+confusion matrix, is optimistic wherever the classifier itself degrades. A4,
+the asymptotic bound, holds as $T \to \infty$ rather than at finite time and
+still carries an uncalibrated constant. A5, scalar accuracy standing in for a
+full matrix, is a simplification we sidestep by validating against the
+classifier's actual, very non-uniform matrix.
+
+\section{Protocol}
+
+The classifier combines a TF-IDF representation (word 1--3 grams, 5000
+features) with a one-hot tool identifier, feeding a linear SVM with balanced
+class weights; calibrated probabilities come from a separate logistic
+regression. It is trained on 300 template-generated failure events from the
+same synthetic injector the simulator uses, and the matrix in
+Fig.~\ref{fig:confusion} was measured on a disjoint batch of 150 events per
+type under a different seed. The 0.939 accuracy is held out with respect to
+instances but not with respect to distribution, so the matrix should be read as
+a plausible \emph{shape} of classifier error, concentrated and asymmetric with
+one dominant confusable type, and not as an accuracy that would survive
+production failure text.
+
+\begin{figure}[!t]
+\centering
+\figph{\columnwidth}{0.62\columnwidth}{figs/fig2_confusion.pdf}
+\caption{Empirical confusion matrix of the trained classifier,
+$\Pr(\text{predicted} \mid \text{true})$, mean diagonal accuracy 0.939. Five of
+seven rows are effectively identity rows.}
+\label{fig:confusion}
+\end{figure}
+
+The evaluation protocol was written and committed before any of the supporting
+data existed. Of the 25 gap-family environments, 8 went to TEST by a fixed-seed
+draw and the one non-gap-family environment stayed in TRAIN unconditionally,
+giving 18 TRAIN and 8 TEST; two environments already known to have poor errors
+landed in TEST and we did not redraw. Fitting used bounded 1-D least squares on
+mean squared log-space error with the KL form fixed. Branch A (transfer) fits
+$\kappa_A$ on TRAIN perfect-classifier cells and applies it unchanged to TEST
+noisy cells; Branch B (in-condition) fits $\kappa_B$ on TRAIN noisy cells and
+applies it to the same TEST cells, giving the best achievable same-condition
+benchmark. The decision rule was $R = E_A/E_B$ on median absolute relative
+error, with $R \leq 1.5$ committed to Case 1, the effect is absorbed and
+residual error inherited, and $R > 1.5$ to Case 2, the extension adds error of
+its own, reported with no rescue attempt. Uncertainty came from an
+environment-level bootstrap with 2000 resamples, and a constant landing within
+one order of magnitude of the base predictor's own best fit, $[0.00045,
+0.045]$, was to be called a calibrated predictor rather than a validated bound.
+One specification, no second attempt.
+
+\section{Results}
+
+\subsection{Decomposition and static-side validation}
+
+At the classifier's empirical matrix (Fig.~\ref{fig:confusion}) the ceiling
+reduction is $\Delta_{\mathrm{ceil}} = 0.0120$ and the mean gap shrinkage
+across the seven buckets is $0.0020$, so ceiling loss runs about six times
+larger than learnability loss (Fig.~\ref{fig:decomp}a). Both are real and
+neither is zero, but the bulk of the measured degradation is information lost
+to merging rather than a harder arm-identification problem. The split is
+specific to this confusion structure and should not be read as a general ratio.
+The concentration is severe (Fig.~\ref{fig:decomp}b):
+\texttt{malformed\_output} alone carries roughly $0.36$ of the off-diagonal
+mass and \texttt{tool\_error} a further $0.067$, while the remaining five rows
+are effectively identity rows, which is why the two losses are not spread
+evenly across buckets. The argmax-inversion check fires in none of the seven.
+
+We then checked the exact static component of \eqref{eq:rhoconf} against an
+existing table of six noise levels with 50 simulated seeds each, where $\beta$
+interpolates linearly between uniform-random type prediction and the measured
+matrix, so $\beta = 0$ is a classifier that guesses and $\beta = 1$ is the real
+one. That table carries no adaptive trajectory, so it validates the static side
+alone and is never used as evidence for the adaptive theory. As
+Fig.~\ref{fig:decomp}c shows, the median absolute error is 0.93 percentage
+points and no level exceeds 1.5. This is the strongest validation result
+anywhere in this work, which is about what one expects from closed-form
+arithmetic rather than an asymptotic approximation.
+
+\begin{figure}[!t]
+\centering
+\figph{\columnwidth}{0.62\columnwidth}{figs/fig3_decomposition.pdf}
+\caption{Decomposition at the measured classifier and static-side validation.
+(a) Ceiling loss is about six times larger than learnability loss. (b) The
+error is concentrated: one row carries roughly $0.36$ of the off-diagonal mass
+while five rows are identity rows. (c) The exact static form of
+\eqref{eq:rhoconf} tracks simulation across six noise levels $\beta$, 50 seeds
+each, median absolute error 0.93 percentage points.}
+\label{fig:decomp}
+\end{figure}
+
+\subsection{The horizon itself}
+
+Applying the fitted transfer constant to the canonical environment produces the
+number the construction exists to give (Fig.~\ref{fig:crossover}). Under a
+perfect classifier the predicted crossover falls at 3053 episodes; under the
+measured matrix it falls at 3126.
+
+The direction repays a moment's attention, because the two channels pull
+against each other and the smaller one wins. Classifier noise raises the
+table's per-episode regret rate from $\rho = 0.0214$ to $\rho_{\mathrm{conf}} =
+0.0338$, a 58\% increase from a classifier that is right 94\% of the time, and
+that alone would pull the crossover earlier: a baseline bleeding faster is
+caught sooner. It does not, because the learner's problem also became harder.
+Ceiling reduction and gap shrinkage enter \eqref{eq:rts} through inverse-KL
+denominators sensitive to small changes in the top-two gap, and the net effect
+moves the horizon about 2.4\% later. This near-cancellation belongs to this
+environment and this matrix; Fig.~\ref{fig:nonmono} sweeps the same effect over
+accuracy in a minimal two-type instance, where the horizon diverges where the
+bucket's best arm changes identity. Given held-out errors of 40--60\%, the
+honest resolution of these figures is ``roughly three thousand episodes'', not
+3053 against 3126.
+
+\begin{figure}[!t]
+\centering
+\figph{\columnwidth}{0.55\columnwidth}{figs/fig5_crossover.pdf}
+\caption{The crossover on the canonical environment. Classifier noise steepens
+the static baseline by 58\% but also flattens the learner's curve, so the
+horizon moves 2.4\% later rather than earlier.}
+\label{fig:crossover}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\figph{\columnwidth}{0.56\columnwidth}{figs/fig6_nonmonotone.pdf}
+\caption{A better classifier does not imply an earlier crossover. $T^{*}$
+diverges at the accuracy where the bucket's best arm flips and its top-two gap
+vanishes.}
+\label{fig:nonmono}
+\end{figure}
+
+\subsection{Held-out evaluation of the constant}
+\label{sec:heldout}
+
+The power check cleared comfortably, with 18 of 18 TRAIN and 8 of 8 TEST cells
+finite in both branches against a floor of 5. Fig.~\ref{fig:heldout} has the
+headline numbers: Branch A reaches 59.7\% median absolute relative error
+against Branch B's 40.5\%, for $R = 0.5970/0.4053 = 1.4729$.
+
+The point estimate satisfies the committed rule, making this a Case 1 outcome:
+the mixture captures the classifier-noise effect and what error remains is
+inherited asymptotic-bound bias rather than something the extension introduced.
+Two things temper that reading. Absolute errors of 59.7\% and 40.5\% are large,
+so the test shows a pre-existing limitation transferring cleanly rather than
+being resolved. And the margin is 1.8\%, with the pre-registered bootstrap
+interval for $R$ running to 9.55, deep into Case 2, so a different draw of
+held-out environments could plausibly have landed there; the fit-uncertainty
+bootstrap agrees that the noisy-condition fit is markedly less stable than the
+transferred one (Fig.~\ref{fig:heldout}a).
+
+\begin{figure}[!t]
+\centering
+\figph{\columnwidth}{0.72\columnwidth}{figs/fig7_heldout.pdf}
+\caption{Pre-registered held-out evaluation on the eight TEST cells.
+(a) Fitted constants with 95\% bootstrap intervals; both sit inside the
+pre-committed range and the in-condition fit is the less stable of the two.
+(b) Branch A per-cell signed relative error, a spread no scalar constant can
+absorb.}
+\label{fig:heldout}
+\end{figure}
+
+Fig.~\ref{fig:heldout}b shows why the medians should not be read as a tight
+summary: two environments over-predict by roughly $5.75\times$ under both
+constants and one under-predicts by roughly $3\times$. No scalar constant fixes
+this spread, and the protocol's no-rescue commitment meant we did not try to
+introduce one. One candidate explanation deserves naming. The 25 sampled
+environments reuse the canonical table, so baseline quality varies uncontrolled
+and is very low in some cells; baseline quality sets $\rho$, and $\rho$ sets
+the slope the regret curve must cross, so the heterogeneity plausibly tracks
+baseline quality rather than anything about the reformulation. Controlling it,
+or entering it as a pre-registered covariate, is the highest-priority fix to
+this design. We flag it rather than analyse it now, because running a quality
+covariate after seeing the per-cell errors is exactly the exploratory move the
+protocol exists to prevent.
+
+The fitted transfer constant, 0.0444, sits inside the pre-committed calibrated
+range near its upper edge. We therefore call this component a calibrated
+predictor with theoretical motivation rather than a validated bound, and
+classify the crossover extension overall as partially supported. Case 1 was the
+pre-committed outcome and is real held-out evidence for the first time in this
+line of work, but the fragility is equally real. Equations \eqref{eq:pprime}--\eqref{eq:peff}, \eqref{eq:rhoconf}
+and \eqref{eq:dceil}, the gap-shrinkage report, the argmax-inversion check and
+the non-monotonicity finding are all exact and validated; only
+\eqref{eq:rtsconf} and the horizon inherit the asymptotic approximation. All of
+it is simulated, including the classifier, so the numbers describe the
+construction rather than any live agent.
+
+\subsection{Drift: a negative result}
+
+A separate extension, independent of the first, asks whether a low-dimensional
+statistic can predict the sign of adaptive advantage under environment drift,
+out of sample. We fixed the falsifiable structure first: a candidate must beat
+a majority-class guess under leave-one-cell-out evaluation. Three candidates
+were pre-registered and tried in order over a pre-simulated grid of 12,800
+cells across four drift mechanisms, with a fourth ruled out in advance if the
+third failed. Fig.~\ref{fig:drift}a summarises the outcome. Survival and
+gap-change was insufficient. Magnitude and recovery-ratio fitted well but was
+retracted before it could count as a finding, because its recovery-ratio term
+has the base predictor in its own denominator, so testing whether it predicts
+adaptive advantage was largely testing whether the base bound has some validity
+applied row by row. Environment regret and reversion reached $R^2 = 0.676$ but
+its sign accuracy exactly equalled the majority baseline it had to beat. One
+methodological wrinkle is worth recording: first-attempt statistics were means
+over touched rows only, and most of magnitude's apparent contribution in the
+second attempt ($+0.156$ $R^2$) was an artifact of that exclusion, shrinking to
+$+0.006$ when recomputed at the environment level.
+
+\begin{figure}[!t]
+\centering
+\figph{\columnwidth}{0.42\columnwidth}{figs/fig8_drift.pdf}
+\caption{The drift study. (a) Three pre-registered candidate statistics: C1 is
+insufficient, C2 was retracted for circularity, C3 fits well but its sign
+accuracy only equals the majority-class baseline. (b) The one qualitative
+finding that survives: adaptive advantage is negative exactly where staleness
+damage reverts and positive where it does not.}
+\label{fig:drift}
+\end{figure}
+
+One qualitative finding survives the failed quantitative rules: the sign of
+adaptive advantage under drift is governed by whether staleness damage reverts,
+not by how large it is (Fig.~\ref{fig:drift}b). All 13 negative-advantage cells
+sit at a reversion fraction of at least 0.68 across 260 seed draws, and all 32
+cells with reversion near zero come out positive across 640 draws. This also
+explains why the static table beats the learner in 10 of 16 partial-reorder
+cells: best and second-best swap on a period-2 cycle there, so the table's
+stale action stays near-optimal while the learner pays exploration cost chasing
+a target that returns to where it began. We treat this as correlational with a
+mechanism behind it, and drift-type fixed effects retain $+0.092$ $R^2$ beyond
+the two-statistic summary, structure we have not accounted for.
+
+\section{Conclusion}
+
+We extended a crossover-horizon predictor to the setting real systems occupy,
+where recovery policies see a classifier's prediction rather than the true
+failure type. The extension is exact where it can be, collapses to its
+predecessor at a perfect classifier, and separates classifier-induced
+degradation into a ceiling channel and a learnability channel, the former about
+six times the latter at our measured accuracy. On the canonical environment the
+two channels nearly cancel, leaving the horizon almost unmoved despite a 58\%
+rise in the baseline's regret rate, and the horizon is not monotonic in
+accuracy, which rules out an intuitive design heuristic. The free constant was
+evaluated under a protocol fixed before the data existed: the criterion is
+satisfied by point estimate but its uncertainty quantification does not confirm
+that the satisfaction is stable, so we call the component a calibrated
+predictor rather than a validated bound. The companion drift study stands as a
+negative result with one qualitative finding intact.
+
+Three directions follow, in order of priority. A live-agent evaluation should
+measure $P$ and the confusion matrix on real tool failures, since every number
+here rests on a synthetic template generator and an in-distribution classifier
+accuracy that real failure logs would not be expected to reproduce. Static
+baseline quality should then be controlled across the environment family, or
+entered as a pre-registered covariate, so that the per-cell spread in
+Fig.~\ref{fig:heldout}b can be attributed rather than merely flagged. Finally,
+relaxing the stationary-confusion assumption would let the two extensions
+connect, and a causal drift test with damage magnitude matched and reversion
+varied alone would turn the surviving qualitative finding into a tested
+mechanism.
+
+\begin{thebibliography}{99}
+\bibitem{cemri}
+M. Cemri \emph{et al.}, ``Why do multi-agent LLM systems fail?,'' arXiv preprint arXiv:2503.13657, 2025.
+
+\bibitem{zhu}
+K. Zhu \emph{et al.}, ``Where LLM agents fail and how they can learn from failures,'' arXiv preprint arXiv:2509.25370, 2025.
+
+\bibitem{song}
+K. Song, A. Jayarajan, Y. Ding, Q. Su, Z. Zhu, S. Liu, and G. Pekhimenko, ``Aegis: Taxonomy and optimizations for overcoming agent-environment failures in LLM agents,'' arXiv preprint arXiv:2508.19504, 2025.
+
+\bibitem{lai}
+T. L. Lai and H. Robbins, ``Asymptotically efficient adaptive allocation rules,'' \emph{Advances in Applied Mathematics}, vol. 6, no. 1, pp. 4--22, 1985.
+
+\bibitem{reflexion}
+N. Shinn, F. Cassano, E. Berman, A. Gopinath, K. Narasimhan, and S. Yao, ``Reflexion: Language agents with verbal reinforcement learning,'' in \emph{Advances in Neural Information Processing Systems}, vol. 36, 2023, pp. 8634--8652.
+
+\bibitem{critic}
+Z. Gou, Z. Shao, Y. Gong, Y. Shen, Y. Yang, N. Duan, and W. Chen, ``CRITIC: Large language models can self-correct with tool-interactive critiquing,'' in \emph{Proc. Int. Conf. Learning Representations (ICLR)}, 2024.
+
+\bibitem{paladin}
+S. V. Vuddanti, A. Shah, S. K. Chittiprolu, T. Song, S. Dev, K. Zhu, and M. Chaudhary, ``PALADIN: Self-correcting language model agents to cure tool-failure cases,'' arXiv preprint arXiv:2509.25238, 2025.
+
+\bibitem{auer}
+P. Auer, N. Cesa-Bianchi, and P. Fischer, ``Finite-time analysis of the multiarmed bandit problem,'' \emph{Machine Learning}, vol. 47, no. 2--3, pp. 235--256, 2002.
+
+\bibitem{thompson}
+W. R. Thompson, ``On the likelihood that one unknown probability exceeds another in view of the evidence of two samples,'' \emph{Biometrika}, vol. 25, no. 3--4, pp. 285--294, 1933.
+
+\bibitem{russo}
+D. J. Russo, B. Van Roy, A. Kazerouni, I. Osband, and Z. Wen, ``A tutorial on Thompson sampling,'' \emph{Foundations and Trends in Machine Learning}, vol. 11, no. 1, pp. 1--96, 2018.
+
+\bibitem{kirschner}
+J. Kirschner and A. Krause, ``Stochastic bandits with context distributions,'' in \emph{Advances in Neural Information Processing Systems}, vol. 32, 2019, pp. 14090--14099.
+
+\bibitem{kim}
+J.-H. Kim, S.-Y. Yun, M. Jeong, J. Nam, J. Shin, and R. Combes, ``Contextual linear bandits under noisy features: Towards Bayesian oracles,'' in \emph{Proc. 26th Int. Conf. Artificial Intelligence and Statistics (AISTATS)}, PMLR, vol. 206, 2023, pp. 1624--1645.
+
+\bibitem{maillard}
+O.-A. Maillard and S. Mannor, ``Latent bandits,'' in \emph{Proc. 31st Int. Conf. Machine Learning (ICML)}, 2014, pp. 136--144.
+
+\bibitem{hong}
+J. Hong, B. Kveton, M. Zaheer, Y. Chow, A. Ahmed, and C. Boutilier, ``Latent bandits revisited,'' in \emph{Advances in Neural Information Processing Systems}, vol. 33, 2020, pp. 13423--13433.
+\end{thebibliography}
+
+\end{document}
