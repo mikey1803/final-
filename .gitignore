@@ -36,3 +36,21 @@ backend/results/
 # OS
 .DS_Store
 Thumbs.db
+
+# Node (root package.json runs the dev servers via `concurrently`)
+node_modules/
+
+# Logs
+*.log
+
+# SQLite sidecar files (WAL/shared memory) next to the git-ignored *.db files
+backend/data/*.db-wal
+backend/data/*.db-shm
+
+# LaTeX build by-products
+*.aux
+*.synctex.gz
+
+# reproduce.py leaves its validation directory (pipeline_log.txt, regenerated
+# artifacts, snapshots) next to itself after every run
+backend/_reproduce_validation_*/
