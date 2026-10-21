@@ -71,7 +71,7 @@ export function ProblemHero() {
         <motion.div variants={item}>
           <Card
             hover={false}
-            className="flex items-start gap-3 border-lav-primary bg-lav-primary/5 py-4 shadow-[0_2px_10px_rgba(167,139,250,0.12)]"
+            className="flex items-start gap-3 border-lav-primary bg-lav-primary/5 py-4 shadow-[0_2px_10px_rgba(76,111,255,0.12)]"
           >
             <motion.span
               initial={{ scale: 0.6, opacity: 0 }}

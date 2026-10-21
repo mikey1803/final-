@@ -1,18 +1,57 @@
 import { useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { ArrowRight } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Metric } from '../components/ui/Metric'
 import { Card } from '../components/ui/Card'
 import { StaggerGroup, StaggerItem } from '../components/ui/Stagger'
 import { ChartTooltip } from '../components/ChartTooltip'
 import { useCsv } from '../hooks/useCsv'
-import { NAV_GROUPS, groupColorFor } from '../components/DashboardNav'
+import { TABS } from '../components/DashboardNav'
 import { colorFor } from '../lib/colors'
 
-// Derived from the sidebar's own tab list (DashboardNav.jsx) rather than a
-// separate hardcoded array, so this page's summaries and the sidebar's
-// summaries can never drift apart.
-const SECTIONS = NAV_GROUPS.flatMap((g) => g.tabs).filter((t) => t.id !== 'overview')
+function tab(id) {
+  return TABS.find((t) => t.id === id)
+}
+
+function goTo(id) {
+  window.location.hash = `dashboard/${id}`
+}
+
+// Real numbers, not summaries of the sidebar. Each one is independently
+// sourced (comparison_summary.csv, nonstationarity_adaptation.csv, the
+// matrix_perturbation.py-derived presets behind Try Your Own Scenario, and
+// classifier_diagnostics.json) and links straight to the tab that shows the
+// underlying evidence, so this reads as an abstract you can click into, not
+// a second copy of the nav.
+const FINDINGS = [
+  {
+    tabId: 'baselines',
+    stat: '73.6% vs 68.0%',
+    headline: 'A blind, hand-designed Fixed Rule beats every adaptive method in a stationary environment.',
+    detail: 'It never sees the ground-truth success matrix, yet out-performs Thompson Sampling, UCB1, LinUCB, and every other adaptive baseline this project tested.',
+  },
+  {
+    tabId: 'non-stationarity',
+    stat: '76.7% -> 25.1%',
+    headline: 'That same Fixed Rule collapses the moment the environment drifts, and barely recovers.',
+    detail: 'Thompson Sampling drops far less on the same shift (58.0% -> 49.8%) and keeps recovering the longer it runs — the paper’s central crossover, from real simulation data.',
+  },
+  {
+    tabId: 'matrix-explorer',
+    stat: '2 of 3',
+    headline: 'The "Fixed Rule wins" ranking is not universal — it depends on the specific success-rate matrix.',
+    detail: 'Two of three hand-constructed alternative matrices break the ranking outright. Load them yourself and watch it flip.',
+  },
+  {
+    tabId: 'classifier-diagnostics',
+    stat: '93.9% / 64%',
+    headline: 'The real trained classifier is strong overall, with one honest, documented weak spot.',
+    detail: 'Held-out accuracy across all 7 failure types is 93.9% — but malformed_output recall is only 64%, confused mainly with tool_timeout and tool_error.',
+  },
+]
+
+const LIVE_TAB_IDS = ['live-simulation', 'beat-the-bandit', 'diagnose', 'matrix-explorer']
 
 export function Overview() {
   const { data } = useCsv('comparison_summary.csv')
@@ -94,7 +133,7 @@ export function Overview() {
                   />
                   <Tooltip
                     content={<ChartTooltip formatter={(v) => v.toFixed(3)} />}
-                    cursor={{ fill: 'rgba(167,139,250,0.06)' }}
+                    cursor={{ fill: 'rgba(76,111,255,0.06)' }}
                   />
                   <Bar
                     dataKey="normalized_late_stage_score"
@@ -121,17 +160,62 @@ export function Overview() {
         )}
 
         <StaggerItem>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {SECTIONS.map((s) => (
-              <Card key={s.id} className="flex items-start gap-3">
-                <s.icon className="mt-0.5 shrink-0" size={20} style={{ color: groupColorFor(s.id) }} />
-                <div>
-                  <h3 className="font-sans text-base font-semibold text-lav-text">{s.label}</h3>
-                  <p className="mt-1 font-sans text-sm leading-relaxed text-lav-muted">{s.description}</p>
-                </div>
-              </Card>
-            ))}
+          <h2 className="mb-1 font-heading text-lg font-semibold text-lav-text">Key findings</h2>
+          <p className="mb-4 font-sans text-sm text-lav-muted">
+            Four real results, each independently sourced from this project's own data — click through for the evidence.
+          </p>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {FINDINGS.map((f) => {
+              const t = tab(f.tabId)
+              return (
+                <button
+                  key={f.tabId}
+                  onClick={() => goTo(f.tabId)}
+                  className="group text-left"
+                >
+                  <Card className="flex h-full flex-col gap-2 border-l-2 border-l-lav-primary/50">
+                    <div className="flex items-center gap-2">
+                      {t && <t.icon size={15} className="shrink-0 text-lav-muted" />}
+                      <span className="font-mono text-lg font-semibold text-lav-primary">{f.stat}</span>
+                    </div>
+                    <p className="font-sans text-sm font-medium text-lav-text">{f.headline}</p>
+                    <p className="font-sans text-xs leading-relaxed text-lav-muted">{f.detail}</p>
+                    <span className="mt-auto flex items-center gap-1 pt-1 font-sans text-xs text-lav-muted transition-colors group-hover:text-lav-primary">
+                      See the evidence
+                      <ArrowRight size={12} className="transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                  </Card>
+                </button>
+              )
+            })}
           </div>
+        </StaggerItem>
+
+        <StaggerItem>
+          <Card hover={false} className="mt-6 flex flex-col gap-3 border-dashed sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="font-sans text-sm font-semibold text-lav-text">Don't just read it — try it</h3>
+              <p className="mt-0.5 font-sans text-xs text-lav-muted">
+                Every one of these runs against the real trained classifier and the real persistent bandit, live.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {LIVE_TAB_IDS.map((id) => {
+                const t = tab(id)
+                if (!t) return null
+                return (
+                  <button
+                    key={id}
+                    onClick={() => goTo(id)}
+                    className="flex items-center gap-1.5 rounded-md border border-lav-border bg-lav-surface px-3 py-1.5 font-sans text-xs text-lav-text transition-colors hover:border-lav-primary/50 hover:text-lav-primary"
+                  >
+                    <t.icon size={13} />
+                    {t.label}
+                  </button>
+                )
+              })}
+            </div>
+          </Card>
         </StaggerItem>
       </StaggerGroup>
     </div>

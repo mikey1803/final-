@@ -8,6 +8,10 @@ import { MatrixFamilySensitivity } from './tabs/MatrixFamilySensitivity'
 import { NonStationarity } from './tabs/NonStationarity'
 import { BaselinesComparison } from './tabs/BaselinesComparison'
 import { LiveSimulation } from './tabs/LiveSimulation'
+import { BeatTheBandit } from './tabs/BeatTheBandit'
+import { DiagnoseError } from './tabs/DiagnoseError'
+import { ClassifierDiagnostics } from './tabs/ClassifierDiagnostics'
+import { MatrixExplorer } from './tabs/MatrixExplorer'
 import { Task19Theory } from './tabs/Task19Theory'
 import { CrossoverPredictor } from './tabs/CrossoverPredictor'
 import { DriftTaxonomy } from './tabs/DriftTaxonomy'
@@ -24,6 +28,10 @@ const TAB_COMPONENTS = {
   'matrix-family': MatrixFamilySensitivity,
   'non-stationarity': NonStationarity,
   'live-simulation': LiveSimulation,
+  'beat-the-bandit': BeatTheBandit,
+  diagnose: DiagnoseError,
+  'classifier-diagnostics': ClassifierDiagnostics,
+  'matrix-explorer': MatrixExplorer,
   baselines: BaselinesComparison,
   'theory-19': Task19Theory,
   'crossover-predictor': CrossoverPredictor,
@@ -47,28 +55,6 @@ function readRoute() {
   return { view: 'story', tab: 'overview' }
 }
 
-/** Fixed ambient glow behind the whole dashboard, in the system's signature
- * accent gradient (violet top-left, fuchsia bottom-right — same two stops as
- * .accent-gradient) rather than one flat radial. Sits above the neutral
- * scroll-gradient-bg (same z-index, later in DOM order so it paints on top)
- * and stays well behind actual content. */
-function CategoryGlow() {
-  return (
-    <div className="pointer-events-none fixed inset-0 -z-[1] overflow-hidden" aria-hidden="true">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.9, ease: 'easeInOut' }}
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(65% 55% at 12% 0%, rgba(139,92,246,0.24) 0%, transparent 62%), radial-gradient(50% 45% at 100% 100%, rgba(232,121,249,0.16) 0%, transparent 68%)',
-        }}
-      />
-    </div>
-  )
-}
-
 function DataDashboard({ active, onActiveChange, onBack }) {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const ActiveTab = TAB_COMPONENTS[active]
@@ -77,7 +63,6 @@ function DataDashboard({ active, onActiveChange, onBack }) {
   return (
     <div className="min-h-screen w-full">
       <div ref={gradientRef} className="scroll-gradient-bg" aria-hidden="true" />
-      <CategoryGlow />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} onNavigate={onActiveChange} />
       <DashboardTopBar active={active} onChange={onActiveChange} onBack={onBack} onOpenPalette={() => setPaletteOpen(true)} />
       <div className="mx-auto flex max-w-[1400px] items-start gap-8 px-6">

@@ -36,6 +36,12 @@ export const compareLive = (failureType) => post('/api/demo/compare-live', { fai
 export const triggerShift = () => post('/api/demo/trigger-shift')
 export const batchRun = (nEpisodes) => post('/api/demo/batch-run', { n_episodes: nEpisodes })
 export const explainFailureType = (failureType) => request(`/api/demo/explain/${failureType}`)
+export const beatBandit = (failureType, humanStrategy) =>
+  post('/api/demo/beat-the-bandit', { failure_type: failureType, human_strategy: humanStrategy })
+export const diagnose = (rawError, toolName) =>
+  post('/api/demo/diagnose', { raw_error: rawError, tool_name: toolName })
+export const whatIfMatrix = (matrix, nEpisodes) =>
+  post('/api/demo/whatif-matrix', { matrix, n_episodes: nEpisodes })
 export const retryRecovery = (trueFailureType, predictedFailureType, attemptNumber) =>
   post('/api/demo/retry', {
     true_failure_type: trueFailureType,

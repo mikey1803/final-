@@ -1,4 +1,5 @@
-import { motion } from 'motion/react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
 import {
   LayoutDashboard,
   Target,
@@ -15,22 +16,26 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Search,
+  Swords,
+  Stethoscope,
+  Grid3x3,
+  Printer,
+  ChevronDown,
+  FlaskConical,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { LogoBadge } from './Logo'
+import { LogoMark } from './Logo'
 
-// Monochrome + one accent: every group used to carry its own brand hue
-// (teal / amber / emerald) for its active nav state. Under this system there
-// is exactly one accent color anywhere in the UI, so every group key
-// resolves to the same lavender — group identity now comes from label, icon,
-// and position, not a different active-state color per section. The four
-// keys stay (rather than collapsing to one) so every existing
-// GROUP_COLORS.<key> / groupColorFor() call site repaints from here alone.
+// Single navigational accent (--color-lav-primary, an indigo/blue — see
+// index.css's design-system note) used for "active/selected" only. Group
+// identity comes from label + icon + position, not a rainbow of hues; the
+// four color keys stay only so any historical GROUP_COLORS.<key> call site
+// still resolves without edits.
 export const GROUP_COLORS = {
-  primary: '#8B5CF6',
-  teal: '#8B5CF6',
-  amber: '#8B5CF6',
-  live: '#8B5CF6',
+  primary: '#4C6FFF',
+  teal: '#4C6FFF',
+  amber: '#4C6FFF',
+  live: '#4C6FFF',
 }
 
 export const NAV_GROUPS = [
@@ -42,17 +47,31 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    label: 'Try It Live',
+    color: 'live',
+    collapsible: false,
+    tabs: [
+      { id: 'live-simulation', label: 'Live Simulation', icon: Zap, description: 'Try the real classifier and selector yourself, live' },
+      { id: 'beat-the-bandit', label: 'Beat the Bandit', icon: Swords, description: 'Pick recovery strategies blind and race the real bandit, round by round' },
+      { id: 'diagnose', label: 'Diagnose an Error', icon: Stethoscope, description: 'Paste any real error text and get a live prediction and recovery recommendation' },
+      { id: 'matrix-explorer', label: 'Try Your Own Scenario', icon: FlaskConical, description: 'Edit the hidden success-rate matrix yourself and see if the headline finding still holds' },
+    ],
+  },
+  {
     label: 'Core Results',
     color: 'primary',
+    collapsible: true,
     tabs: [
       { id: 'baselines', label: 'Baselines Comparison', icon: Trophy, description: 'The full 11-method comparison, adaptive vs. static vs. LLM' },
       { id: 'classifier-noise', label: 'Classifier-Noise Sweep', icon: Target, description: 'How the result holds up as the failure classifier gets noisier' },
+      { id: 'classifier-diagnostics', label: 'Classifier Diagnostics', icon: Grid3x3, description: 'Real confusion matrix and per-class precision/recall/F1 for the trained classifier' },
       { id: 'non-stationarity', label: 'Non-Stationarity', icon: Activity, description: 'What happens when the environment changes mid-run' },
     ],
   },
   {
     label: 'Generalization & Robustness',
     color: 'teal',
+    collapsible: true,
     tabs: [
       { id: 'matrix-family', label: 'Matrix-Family Sensitivity', icon: GitCompareArrows, description: 'Whether the result depends on one hand-picked reward matrix' },
       { id: 'drift-taxonomy', label: 'Drift Taxonomy', icon: Waves, description: 'Every physically-motivated way the environment can drift' },
@@ -63,17 +82,13 @@ export const NAV_GROUPS = [
   {
     label: 'Validation Studies',
     color: 'amber',
+    collapsible: true,
     tabs: [
       { id: 'blind-design', label: 'Blind-Design Study', icon: EyeOff, description: 'Checking the baseline rule against independent AI designs' },
       { id: 'theory-19', label: 'Crossover Theory Validation', icon: BookOpen, description: 'Patching the crossover formula for real-world classifier noise' },
       { id: 'runtime-cost', label: 'Runtime & Cost', icon: Gauge, description: 'Real latency and token spend, not just accuracy' },
       { id: 'methodology', label: 'Methodology & Integrity', icon: ShieldCheck, description: 'Honest audits: a bug found and fixed, a claim corrected' },
     ],
-  },
-  {
-    label: null,
-    color: 'live',
-    tabs: [{ id: 'live-simulation', label: 'Live Simulation', icon: Zap, description: 'Try the real classifier and selector yourself, live' }],
   },
 ]
 
@@ -87,105 +102,83 @@ export function groupColorFor(tabId) {
 
 function Brand() {
   return (
-    <div className="flex shrink-0 items-center gap-2.5">
-      <LogoBadge size={32} />
-      <span className="hidden font-sans text-sm font-semibold tracking-wide text-lav-text sm:inline">
-        Failure-Aware Agent
+    <div className="flex shrink-0 items-center gap-2">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-lav-border text-lav-text">
+        <LogoMark size={13} />
+      </span>
+      <span className="hidden font-mono text-xs font-medium tracking-tight text-lav-text sm:inline">
+        failure-aware-agent
       </span>
     </div>
   )
 }
 
-// Active nav state renders as a soft accent-gradient wash (violet -> fuchsia)
-// rather than a flat single-color fill — the one accent still reads as one
-// identity, just with real depth instead of a flat swatch.
-const activeGradientStyle = {
-  backgroundImage: 'linear-gradient(135deg, rgba(139,92,246,0.24), rgba(232,121,249,0.16))',
-  boxShadow: 'inset 0 0 0 1px rgba(139,92,246,0.45)',
-}
-
 function MobileTabPill({ tab, active, onClick }) {
   const Icon = tab.icon
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      whileTap={{ scale: 0.94 }}
-      transition={tapSpring}
       className={cn(
-        'relative flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 font-sans text-xs font-medium transition-colors duration-200',
-        active ? 'text-lav-text' : 'text-lav-muted',
+        'relative flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 py-2 font-sans text-xs font-medium transition-colors duration-150',
+        active ? 'border-lav-primary text-lav-text' : 'border-transparent text-lav-muted hover:text-lav-text',
       )}
     >
-      {active && (
-        <motion.div
-          layoutId="dashboard-nav-active-pill-mobile"
-          className="absolute inset-0 rounded-full"
-          style={activeGradientStyle}
-          transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-        />
-      )}
-      <Icon size={13} className="relative z-10 shrink-0" />
-      <span className="relative z-10 whitespace-nowrap">{tab.label}</span>
-    </motion.button>
+      <Icon size={13} className="shrink-0" />
+      {tab.label}
+    </button>
   )
 }
 
-/** Floating "island" top bar — detached from the viewport edge with its own
- * margin, rounded, glass-blurred, shadowed — rather than a flat bar flush
- * against the top. Brand, back-to-story, and (below lg, where the sidebar
- * is hidden) a horizontally scrollable strip of every tab grouped the same
- * way as the sidebar. */
-const tapSpring = { type: 'spring', bounce: 0, duration: 0.3 }
-
+/** Sticky top bar: flush, thin, structural — a strip of instrumentation
+ * chrome, not a floating rounded "island". Brand mark, jump-to-tab, and
+ * (below lg, where the sidebar is hidden) a horizontally scrollable strip
+ * of every tab grouped the same way as the sidebar. */
 export function DashboardTopBar({ active, onChange, onBack, onOpenPalette }) {
   return (
-    <header className="sticky top-0 z-20 px-3 pt-3 sm:px-4 sm:pt-4">
-      <div className="material-chrome mx-auto max-w-[1400px] rounded-2xl border border-lav-border bg-lav-bg/75 backdrop-blur-xl saturate-150 shadow-[0_12px_36px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center justify-between gap-4 px-5 py-2.5">
-          <Brand />
-          <div className="flex shrink-0 items-center gap-2">
-            <motion.button
-              onClick={onOpenPalette}
-              whileTap={{ scale: 0.96 }}
-              transition={tapSpring}
-              className="flex items-center gap-2 rounded-full border border-lav-border bg-lav-surface px-3.5 py-1.5 font-sans text-sm text-lav-muted transition-colors hover:border-lav-primary/60 hover:text-lav-text"
-            >
-              <Search size={14} />
-              <span className="hidden sm:inline">Jump to tab</span>
-              <kbd className="hidden rounded border border-lav-border px-1.5 py-0.5 font-mono text-[10px] sm:inline">
-                {navigator.platform?.includes('Mac') ? '⌘K' : 'Ctrl K'}
-              </kbd>
-            </motion.button>
-            <motion.button
-              onClick={onBack}
-              whileTap={{ scale: 0.96 }}
-              transition={tapSpring}
-              className="flex items-center gap-1.5 rounded-full border border-lav-border bg-lav-surface px-3.5 py-1.5 font-sans text-sm text-lav-text transition-colors hover:border-lav-primary/60 hover:bg-lav-primary/10 hover:text-lav-primary"
-            >
-              <ArrowLeft size={15} />
-              <span className="hidden sm:inline">Project Story</span>
-            </motion.button>
-          </div>
+    <header className="material-chrome chrome-edge sticky top-0 z-20 border-b border-lav-border bg-lav-bg/92 backdrop-blur-md print:hidden">
+      <div className="mx-auto flex h-12 max-w-[1400px] items-center justify-between gap-4 px-5">
+        <Brand />
+        <div className="flex shrink-0 items-center gap-4">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-1.5 font-sans text-xs text-lav-muted transition-colors hover:text-lav-text"
+            title="Print this tab, or save it as a PDF"
+          >
+            <Printer size={13} />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+          <button
+            onClick={onOpenPalette}
+            className="flex items-center gap-2 font-sans text-xs text-lav-muted transition-colors hover:text-lav-text"
+          >
+            <Search size={13} />
+            <span className="hidden sm:inline">Jump to tab</span>
+            <kbd className="hidden rounded border border-lav-border px-1.5 py-0.5 font-mono text-[10px] text-lav-muted sm:inline">
+              {navigator.platform?.includes('Mac') ? '⌘K' : 'Ctrl K'}
+            </kbd>
+          </button>
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 font-sans text-xs text-lav-muted transition-colors hover:text-lav-text"
+          >
+            <ArrowLeft size={13} />
+            <span className="hidden sm:inline">Project Story</span>
+          </button>
         </div>
-
-        <nav
-          className="flex items-center gap-5 overflow-x-auto px-4 pb-2.5 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden"
-          style={{ maskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)' }}
-        >
-          {NAV_GROUPS.map((group, i) => (
-            <div key={group.label ?? `group-${i}`} className="flex shrink-0 items-center gap-1.5">
-              {group.label && (
-                <span className="mr-0.5 whitespace-nowrap font-sans text-[10px] font-semibold uppercase tracking-wide text-lav-muted/70">
-                  {group.label}
-                </span>
-              )}
-              {group.tabs.map((tab) => (
-                <MobileTabPill key={tab.id} tab={tab} active={active === tab.id} onClick={() => onChange(tab.id)} />
-              ))}
-            </div>
-          ))}
-        </nav>
       </div>
+
+      <nav
+        className="flex items-center gap-5 overflow-x-auto border-t border-lav-border px-4 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden"
+        style={{ maskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)' }}
+      >
+        {NAV_GROUPS.map((group, i) => (
+          <div key={group.label ?? `group-${i}`} className="flex shrink-0 items-center gap-3">
+            {group.tabs.map((tab) => (
+              <MobileTabPill key={tab.id} tab={tab} active={active === tab.id} onClick={() => onChange(tab.id)} />
+            ))}
+          </div>
+        ))}
+      </nav>
     </header>
   )
 }
@@ -193,65 +186,118 @@ export function DashboardTopBar({ active, onChange, onBack, onOpenPalette }) {
 function SidebarLink({ tab, active, onClick }) {
   const Icon = tab.icon
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      whileHover={{ x: active ? 0 : 2 }}
-      whileTap={{ scale: 0.98 }}
-      transition={tapSpring}
-      className="relative flex items-start gap-2.5 rounded-lg px-3 py-2 text-left transition-colors"
+      className="group relative flex items-start gap-2.5 py-1.5 pl-3.5 pr-2 text-left"
     >
-      {active && (
-        <motion.span
-          layoutId="sidebar-active-indicator"
-          className="absolute inset-0 rounded-lg"
-          style={activeGradientStyle}
-          transition={{ type: 'spring', stiffness: 260, damping: 28 }}
-        />
-      )}
-      <motion.span
-        animate={active ? { scale: 1.1 } : { scale: 1 }}
-        transition={tapSpring}
-        className="relative z-10 mt-0.5 shrink-0"
-      >
-        <Icon size={15} className={active ? 'text-lav-primary' : 'text-lav-muted'} />
-      </motion.span>
-      <span className="relative z-10 min-w-0">
-        <span
-          className={cn(
-            'block font-sans text-sm',
-            active ? 'accent-gradient-text font-semibold' : 'text-lav-muted',
-          )}
-        >
+      <span className="absolute inset-y-0.5 left-0 w-[2px] overflow-hidden rounded-full bg-transparent">
+        {active && (
+          <motion.span
+            layoutId="sidebar-active-indicator"
+            className="block h-full w-full bg-lav-primary"
+            transition={{ type: 'spring', stiffness: 340, damping: 32 }}
+          />
+        )}
+      </span>
+      <Icon size={14} className={cn('mt-0.5 shrink-0 transition-colors', active ? 'text-lav-primary' : 'text-lav-muted group-hover:text-lav-text')} />
+      <span className="min-w-0">
+        <span className={cn('block font-sans text-sm transition-colors', active ? 'font-medium text-lav-text' : 'text-lav-muted group-hover:text-lav-text')}>
           {tab.label}
         </span>
         {tab.description && (
-          <span className="mt-0.5 block font-sans text-xs leading-snug text-lav-muted/80">{tab.description}</span>
+          <span className="mt-0.5 block font-sans text-xs leading-snug text-lav-muted/70">{tab.description}</span>
         )}
       </span>
-    </motion.button>
+    </button>
   )
 }
 
-/** Desktop-only (lg+) grouped vertical nav, sticky below the top bar. The
- * active-state color (fixed above in GROUP_COLORS) is the system's one
- * accent regardless of group; the shared layoutId on the active pill lets
- * Motion morph its position when jumping between groups. */
+const COLLAPSE_KEY = 'dashboard-nav-collapsed-groups-v1'
+
+function loadCollapsed() {
+  try {
+    const raw = localStorage.getItem(COLLAPSE_KEY)
+    return raw ? new Set(JSON.parse(raw)) : new Set(NAV_GROUPS.filter((g) => g.collapsible).map((g) => g.label))
+  } catch {
+    return new Set(NAV_GROUPS.filter((g) => g.collapsible).map((g) => g.label))
+  }
+}
+
+function saveCollapsed(set) {
+  try {
+    localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...set]))
+  } catch {
+    // collapse state just won't persist across reloads
+  }
+}
+
+/** Desktop-only (lg+) grouped vertical nav, sticky below the top bar.
+ * Active state is a thin left-edge tick that Motion morphs between items
+ * (VS Code / Linear convention), not a filled pill — reserves color for
+ * the one thing it needs to say ("you are here"). The three deep research
+ * groups (13 tabs combined) collapse to a single header by default so the
+ * sidebar opens on ~5 items, not a 17-tab wall — Overview and the
+ * interactive "Try It Live" group (the two things worth seeing first)
+ * always stay expanded. Whichever group holds the active tab force-opens,
+ * so deep-linking or search never lands inside a hidden section. */
 export function DashboardSidebar({ active, onChange, className }) {
+  const [collapsed, setCollapsed] = useState(loadCollapsed)
+
+  const toggleGroup = (label) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
+      saveCollapsed(next)
+      return next
+    })
+  }
+
   return (
-    <aside className={cn('hidden shrink-0 lg:block lg:w-60', className)}>
-      <nav className="sticky top-[88px] flex flex-col gap-5 py-8">
-        {NAV_GROUPS.map((group, i) => (
-          <div key={group.label ?? `group-${i}`} className="flex flex-col gap-1">
-            {group.label && (
-              <p className="mb-1 px-3 font-sans text-[11px] font-semibold uppercase tracking-wide text-lav-muted/70">
-                {group.label}
-              </p>
-            )}
-            {group.tabs.map((tab) => (
-              <SidebarLink key={tab.id} tab={tab} active={active === tab.id} onClick={() => onChange(tab.id)} />
-            ))}
-          </div>
-        ))}
+    <aside className={cn('hidden shrink-0 print:hidden lg:block lg:w-60', className)}>
+      <nav className="sticky top-[49px] flex flex-col gap-5 py-8">
+        {NAV_GROUPS.map((group, i) => {
+          const isOpen = !group.collapsible || !collapsed.has(group.label) || group.tabs.some((t) => t.id === active)
+          return (
+            <div key={group.label ?? `group-${i}`} className="flex flex-col gap-0.5">
+              {group.label && (
+                group.collapsible ? (
+                  <button
+                    onClick={() => toggleGroup(group.label)}
+                    className="mb-1.5 flex items-center justify-between px-3.5 font-mono text-[10px] font-medium uppercase tracking-wider text-lav-muted/60 transition-colors hover:text-lav-muted"
+                  >
+                    <span>{group.label}</span>
+                    <span className="flex items-center gap-1">
+                      {!isOpen && <span className="tabular-nums">{group.tabs.length}</span>}
+                      <ChevronDown size={11} className={cn('shrink-0 transition-transform duration-200', isOpen && 'rotate-180')} />
+                    </span>
+                  </button>
+                ) : (
+                  <p className="mb-1.5 px-3.5 font-mono text-[10px] font-medium uppercase tracking-wider text-lav-muted/60">
+                    {group.label}
+                  </p>
+                )
+              )}
+              <AnimatePresence initial={false}>
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ type: 'spring', bounce: 0, duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      {group.tabs.map((tab) => (
+                        <SidebarLink key={tab.id} tab={tab} active={active === tab.id} onClick={() => onChange(tab.id)} />
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )
+        })}
       </nav>
     </aside>
   )

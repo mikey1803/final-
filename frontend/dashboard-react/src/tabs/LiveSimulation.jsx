@@ -13,20 +13,17 @@ import {
   TrendingUp,
 } from 'lucide-react'
 import { PageHeader } from '../components/ui/PageHeader'
-import { Card } from '../components/ui/Card'
 import { cn } from '../lib/utils'
 import { FAILURE_TYPES } from '../data/failureTypes'
 import { useLiveDemo } from './live-simulation/useLiveDemo'
 import { LearnedPanel } from './live-simulation/LearnedPanel'
 import { CompareLivePanel } from './live-simulation/CompareLivePanel'
 import { BatchRunChart } from './live-simulation/BatchRunChart'
-import { PipelineView } from './live-simulation/PipelineView'
+import { EventStream } from './live-simulation/EventStream'
+import { FailureEventGrid } from './live-simulation/FailureEventGrid'
+import { TaskInput } from './live-simulation/TaskInput'
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 12 },
-  show: (i = 0) => ({ opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut', delay: i * 0.15 } }),
-}
-const tapSpring = { type: 'spring', bounce: 0, duration: 0.3 }
+const tapSpring = { type: 'spring', bounce: 0, duration: 0.25 }
 
 export function LiveSimulation() {
   const {
@@ -65,9 +62,7 @@ export function LiveSimulation() {
   // The headline demo: force a mid-run environment disruption (permutes which
   // recovery strategy actually works, same mechanic as the Non-Stationarity
   // experiment), then race 100 fresh episodes through it. Fixed Rule can't
-  // re-learn after a shift by construction, Thompson Sampling can. This is
-  // the one-click version of that argument instead of two separate buttons
-  // the user has to remember to click in order.
+  // re-learn after a shift by construction, Thompson Sampling can.
   const handleProveIt = async () => {
     if (!demoState?.shift_active) await runShift()
     setBatchUnderDrift(true)
@@ -76,10 +71,6 @@ export function LiveSimulation() {
 
   const lastBatchRow = batchResult?.rows?.[batchResult.rows.length - 1]
   const hasShiftedSeries = Boolean(batchResult?.shifted_episodes_seen)
-  // The honest number: once any shifted-type episodes landed, use their own
-  // cumulative rate (not diluted by the 5/7 failure types the shift never
-  // touched), same reasoning as the Non-Stationarity tab's shifted-type-only
-  // chart. Falls back to the all-types rate when there's no active shift.
   const batchGap = lastBatchRow
     ? Math.round(
         hasShiftedSeries
@@ -99,207 +90,168 @@ export function LiveSimulation() {
       />
 
       {backendUp === null && (
-        <Card hover={false} className="flex items-center gap-2 font-sans text-sm text-lav-muted">
-          <Loader2 className="animate-spin" size={16} />
+        <div className="flex items-center gap-2 border-t border-lav-border pt-4 font-sans text-sm text-lav-muted">
+          <Loader2 className="animate-spin" size={15} />
           Checking backend connection...
-        </Card>
+        </div>
       )}
 
       {backendUp === false && (
-        <Card hover={false} className="border-lav-cost/40 bg-lav-cost/5">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 shrink-0 text-lav-cost" size={20} />
-            <div>
-              <p className="font-sans text-sm font-semibold text-lav-text">Backend not reachable</p>
-              <p className="mt-1 font-sans text-sm text-lav-muted">
-                This tab calls a real FastAPI server at{' '}
-                <code className="font-mono text-lav-text">localhost:8000</code>. Start it first:
-              </p>
-              <pre className="mt-2 overflow-x-auto rounded-lg bg-lav-bg px-3 py-2 font-mono text-xs text-lav-text">
-                cd backend{'\n'}uvicorn api.main:app --reload --port 8000
-              </pre>
-            </div>
+        <div className="flex items-start gap-3 border-t border-lav-cost/40 pt-4">
+          <AlertTriangle className="mt-0.5 shrink-0 text-lav-cost" size={18} />
+          <div>
+            <p className="font-sans text-sm font-semibold text-lav-text">Backend not reachable</p>
+            <p className="mt-1 font-sans text-sm text-lav-muted">
+              This tab calls a real FastAPI server at <code className="font-mono text-lav-text">localhost:8000</code>. Start it first:
+            </p>
+            <pre className="mt-2 overflow-x-auto rounded-md border border-lav-border bg-lav-surface px-3 py-2 font-mono text-xs text-lav-text">
+              cd backend{'\n'}uvicorn api.main:app --reload --port 8000
+            </pre>
           </div>
-        </Card>
+        </div>
       )}
 
       {backendUp === true && (
         <>
-          {/* Control strip: one horizontal bar for the primary interaction,
-              not a tall sidebar of stacked pills eating a third of the page. */}
-          <Card hover={false} className="mb-6 flex flex-wrap items-center gap-3 p-3">
-            <div className="flex shrink-0 gap-1 rounded-full border border-lav-border p-1">
+          {/* Status line — a readout, not a card. */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t border-lav-border py-2.5 font-mono text-[11px] text-lav-muted">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="signal-dot signal-dot--pulse text-lav-success" />
+              backend connected
+            </span>
+            <span>episode {demoState?.episode_number ?? 0}</span>
+            {demoState?.shift_active && (
+              <span className="text-lav-cost">shifted: {demoState.shifted_types?.join(', ')}</span>
+            )}
+          </div>
+
+          {/* Event input — the failure grid or a real task submission, not a form. */}
+          <div className="border-t border-lav-border py-4">
+            <div className="mb-3 flex items-center gap-4">
               <button
                 onClick={() => setMode('manual')}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-sm transition-colors',
-                  mode === 'manual' ? 'bg-lav-primary text-lav-bg' : 'text-lav-muted hover:text-lav-text',
+                  'flex items-center gap-1.5 border-b-2 pb-1.5 font-sans text-xs font-medium transition-colors',
+                  mode === 'manual' ? 'border-lav-primary text-lav-text' : 'border-transparent text-lav-muted hover:text-lav-text',
                 )}
               >
-                <Dices size={14} /> <span className="hidden sm:inline">Pick a failure type</span>
+                <Dices size={13} /> Inject a failure
               </button>
               <button
                 onClick={() => setMode('natural')}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-full px-3 py-1.5 font-sans text-sm transition-colors',
-                  mode === 'natural' ? 'bg-lav-primary text-lav-bg' : 'text-lav-muted hover:text-lav-text',
+                  'flex items-center gap-1.5 border-b-2 pb-1.5 font-sans text-xs font-medium transition-colors',
+                  mode === 'natural' ? 'border-lav-primary text-lav-text' : 'border-transparent text-lav-muted hover:text-lav-text',
                 )}
               >
-                <MessageSquare size={14} /> <span className="hidden sm:inline">Type a request</span>
+                <MessageSquare size={13} /> Submit a task
               </button>
             </div>
 
-            <div className="min-w-[220px] flex-1">
-              {mode === 'manual' ? (
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full rounded-lg border border-lav-border bg-lav-surface px-3 py-2 font-mono text-sm text-lav-text"
-                >
-                  {FAILURE_TYPES.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={requestText}
-                  onChange={(e) => setRequestText(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleNatural()}
-                  placeholder="e.g. what's the weather in Tokyo"
-                  className="w-full rounded-lg border border-lav-border bg-lav-surface px-3 py-2 font-sans text-sm text-lav-text"
-                />
-              )}
+            {mode === 'manual' ? (
+              <FailureEventGrid selected={selectedType} onSelect={setSelectedType} />
+            ) : (
+              <TaskInput value={requestText} onChange={setRequestText} onSubmit={handleNatural} disabled={loading} />
+            )}
+
+            <div className="mt-3 flex items-center gap-3">
+              <motion.button
+                onClick={mode === 'manual' ? handleManual : handleNatural}
+                disabled={loading || (mode === 'natural' && !requestText.trim())}
+                whileTap={loading ? undefined : { scale: 0.97 }}
+                transition={tapSpring}
+                className="rounded bg-lav-primary px-4 py-1.5 font-sans text-sm font-medium text-white disabled:opacity-40"
+              >
+                {loading ? (mode === 'manual' ? 'Injecting...' : 'Running...') : mode === 'manual' ? 'Inject' : 'Run'}
+              </motion.button>
+              <button
+                onClick={reset}
+                disabled={loading}
+                className="flex items-center gap-1.5 font-sans text-xs text-lav-muted transition-colors hover:text-lav-text disabled:opacity-40"
+              >
+                <RotateCcw size={12} /> Reset demo
+              </button>
             </div>
+          </div>
 
-            <motion.button
-              onClick={mode === 'manual' ? handleManual : handleNatural}
-              disabled={loading || (mode === 'natural' && !requestText.trim())}
-              whileHover={loading ? undefined : { scale: 1.04 }}
-              whileTap={loading ? undefined : { scale: 0.96 }}
-              transition={tapSpring}
-              className="shrink-0 rounded-full bg-lav-primary px-5 py-2 font-sans text-sm font-medium text-lav-bg disabled:opacity-40"
-            >
-              {loading ? (mode === 'manual' ? 'Injecting...' : 'Running...') : mode === 'manual' ? 'Inject' : 'Run'}
-            </motion.button>
-
-            <button
-              onClick={reset}
-              disabled={loading}
-              title="Reset demo"
-              className="shrink-0 rounded-full border border-lav-border p-2 text-lav-muted transition-colors hover:text-lav-primary disabled:opacity-40"
-            >
-              <RotateCcw size={15} />
-            </button>
-          </Card>
-
-          {/* Bento hero row: the live trace is the actual centerpiece (wide
-              tile), what the bandit has learned rides alongside it (narrow
-              tile) instead of being buried under a wall of buttons. */}
-          <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-            <Card hover={false} className="min-h-[420px] p-6 sm:p-8">
+          {/* Live event log — the centerpiece, wide, with what's-learned
+              riding alongside it rather than buried under the controls. */}
+          <div className="grid grid-cols-1 gap-8 border-t border-lav-border py-5 lg:grid-cols-[1fr_260px]">
+            <div className="min-h-[280px]">
               {loading && (
-                <div className="flex h-full min-h-[340px] flex-col items-center justify-center gap-3 text-lav-muted">
-                  <Loader2 className="animate-spin" size={28} />
-                  <p className="font-sans text-sm">Calling the real backend...</p>
+                <div className="flex h-full min-h-[240px] flex-col items-center justify-center gap-3 text-lav-muted">
+                  <Loader2 className="animate-spin" size={22} />
+                  <p className="font-mono text-xs">calling the real backend...</p>
                 </div>
               )}
 
               {!loading && !result && (
-                <div className="flex h-full min-h-[340px] flex-col items-center justify-center gap-2 text-center text-lav-muted">
-                  <p className="font-sans text-sm">No trials yet. Inject a failure to start.</p>
+                <div className="flex h-full min-h-[240px] flex-col items-center justify-center text-center text-lav-muted">
+                  <p className="font-sans text-sm">No trials yet. Inject a failure or submit a task to start.</p>
                 </div>
               )}
 
               {!loading && isCleanSuccess && (
                 <motion.div
-                  initial="hidden"
-                  animate="show"
-                  custom={0}
-                  variants={fadeUp}
-                  className="flex min-h-[340px] flex-col items-center justify-center gap-4 text-center"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex h-full min-h-[240px] flex-col items-center justify-center gap-3 text-center"
                 >
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-lav-success/15 text-lav-success">
-                    <CheckCircle2 size={28} />
-                  </span>
+                  <CheckCircle2 size={24} className="text-lav-success" />
                   <div>
-                    <p className="font-sans text-lg font-semibold text-lav-text">
-                      Tool call succeeded - no recovery needed
-                    </p>
-                    <p className="mt-1 font-mono text-sm text-lav-muted">
+                    <p className="font-sans text-sm font-semibold text-lav-text">Tool call succeeded, no recovery needed</p>
+                    <p className="mt-1 font-mono text-xs text-lav-muted">
                       {result.tool_called}({JSON.stringify(result.tool_args)})
                     </p>
-                    <p className="mt-2 font-mono text-xs text-lav-success">-&gt; {JSON.stringify(result.tool_result)}</p>
+                    <p className="mt-1 font-mono text-xs text-lav-success">-&gt; {JSON.stringify(result.tool_result)}</p>
                   </div>
                 </motion.div>
               )}
 
-              {!loading && isRecoveryRun && <PipelineView result={result} />}
-            </Card>
+              {!loading && isRecoveryRun && <EventStream result={result} />}
+            </div>
 
             <LearnedPanel demoState={demoState} />
           </div>
 
           {error && (
-            <Card hover={false} className="mb-6 border-lav-cost/40 bg-lav-cost/5 font-sans text-sm text-lav-cost">
-              {error}
-            </Card>
+            <div className="border-t border-lav-cost/40 py-3 font-sans text-sm text-lav-cost">{error}</div>
           )}
 
-          {/* The headline argument as one feature module, not a button in a
-              sidebar pointing at a chart three sections away: the CTA, the
-              plain-English result, and the chart it produced all live in the
-              same place, because they're one causal story. */}
-          <Card hover={false} className="mb-6 border-lav-primary/25 p-6 sm:p-8">
-            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          {/* The headline argument, one place: the CTA, the plain-English
+              result, and the chart it produced, because they're one causal
+              story, not three separate UI pieces. */}
+          <div className="border-t border-lav-border py-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 className="font-sans text-lg font-semibold text-lav-text">
-                  Does the bandit actually beat the fixed rule?
-                </h3>
+                <h3 className="font-sans text-base font-semibold text-lav-text">Does the bandit beat the fixed rule?</h3>
                 <p className="mt-1 max-w-md font-sans text-sm text-lav-muted">
-                  Forces a live environment disruption, then races Thompson Sampling against the blind Fixed Rule
-                  for 100 fresh episodes to find out.
+                  Forces a live environment disruption, then races Thompson Sampling against the blind Fixed Rule for
+                  100 fresh episodes to find out.
                 </p>
               </div>
               <motion.button
                 onClick={handleProveIt}
                 disabled={shiftLoading || batchLoading}
-                whileHover={shiftLoading || batchLoading ? undefined : { scale: 1.03 }}
                 whileTap={shiftLoading || batchLoading ? undefined : { scale: 0.97 }}
                 transition={tapSpring}
-                className="accent-gradient flex shrink-0 items-center gap-2 rounded-full px-5 py-2.5 font-sans text-sm font-medium text-lav-bg shadow-[0_6px_20px_rgba(0,0,0,0.35)] disabled:opacity-50"
+                className="flex shrink-0 items-center gap-2 rounded bg-lav-primary px-4 py-2 font-sans text-sm font-medium text-white disabled:opacity-50"
               >
-                {shiftLoading || batchLoading ? (
-                  <Loader2 className="animate-spin" size={15} />
-                ) : (
-                  <TrendingUp size={15} />
-                )}
+                {shiftLoading || batchLoading ? <Loader2 className="animate-spin" size={14} /> : <TrendingUp size={14} />}
                 Prove it
               </motion.button>
             </div>
-
-            {demoState?.shift_active && (
-              <span className="mt-3 inline-block rounded-full bg-lav-cost/10 px-2.5 py-1 font-mono text-[11px] text-lav-cost">
-                shifted: {demoState.shifted_types?.join(', ')}
-              </span>
-            )}
 
             {batchResult ? (
               <div className="mt-5">
                 {batchGap !== null && (
                   <div
                     className={cn(
-                      'mb-3 flex items-center gap-2 rounded-lg px-3.5 py-2.5 font-sans text-sm',
-                      batchGap > 0
-                        ? 'bg-lav-success/10 text-lav-success'
-                        : batchGap < 0
-                          ? 'bg-lav-cost/10 text-lav-cost'
-                          : 'bg-lav-surface-raised text-lav-muted',
+                      'mb-3 flex items-center gap-2 border-l-2 py-1.5 pl-3 font-sans text-sm',
+                      batchGap > 0 ? 'border-lav-success text-lav-success' : batchGap < 0 ? 'border-lav-cost text-lav-cost' : 'border-lav-border text-lav-muted',
                     )}
                   >
-                    <TrendingUp size={16} className="shrink-0" />
+                    <TrendingUp size={14} className="shrink-0" />
                     <span>
                       {batchGap > 0
                         ? `Thompson Sampling finished ${batchGap} points ahead of Fixed Rule`
@@ -312,31 +264,28 @@ export function LiveSimulation() {
                     </span>
                   </div>
                 )}
-                <p className="mb-2 font-sans text-xs text-lav-muted">
-                  {batchResult.n_episodes} throwaway episodes, simulated server-side (doesn't touch the persistent
-                  demo state above).{' '}
+                <p className="mb-2 font-mono text-[11px] text-lav-muted">
+                  {batchResult.n_episodes} throwaway episodes, simulated server-side.{' '}
                   {hasShiftedSeries
-                    ? `${batchResult.shifted_episodes_seen} of them hit a shifted failure type (${batchResult.shifted_types?.join(', ')}). Bold lines below isolate those; dashed lines are the all-types rate, diluted by the 5/7 types the shift never touched.`
+                    ? `${batchResult.shifted_episodes_seen} hit a shifted failure type (${batchResult.shifted_types?.join(', ')}). Bold lines isolate those; dashed lines are the all-types rate.`
                     : batchUnderDrift
-                      ? 'Run under an active environment disruption, but no shifted-type episodes happened to land in this batch. Try again.'
+                      ? 'Run under an active disruption, but no shifted-type episodes landed in this batch. Try again.'
                       : 'Run under the normal (non-disrupted) environment.'}
                 </p>
                 <BatchRunChart rows={batchResult.rows} hasShiftedSeries={hasShiftedSeries} />
               </div>
             ) : (
-              <div className="mt-5 flex min-h-[120px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-lav-border text-center">
+              <div className="mt-5 flex min-h-[100px] flex-col items-center justify-center gap-1 border border-dashed border-lav-border text-center">
                 <p className="font-sans text-sm text-lav-muted">No run yet.</p>
                 <p className="font-sans text-xs text-lav-muted/70">Click "Prove it" above to find out.</p>
               </div>
             )}
 
-            {/* Manual controls for the two steps "Prove it" combines, for
-                anyone who wants to drive them independently. */}
-            <div className="mt-4 flex flex-wrap gap-2 border-t border-lav-border/60 pt-4">
+            <div className="mt-4 flex flex-wrap gap-4 font-sans text-xs text-lav-muted">
               <button
                 onClick={runShift}
                 disabled={shiftLoading || demoState?.shift_active}
-                className="flex items-center gap-1.5 rounded-full border border-lav-border px-3 py-1.5 font-sans text-xs text-lav-muted transition-colors hover:text-lav-primary disabled:opacity-40"
+                className="flex items-center gap-1.5 transition-colors hover:text-lav-text disabled:opacity-40"
               >
                 {shiftLoading ? <Loader2 className="animate-spin" size={12} /> : <Zap size={12} />}
                 Trigger disruption only
@@ -344,26 +293,25 @@ export function LiveSimulation() {
               <button
                 onClick={handleBatch}
                 disabled={batchLoading || shiftLoading}
-                className="flex items-center gap-1.5 rounded-full border border-lav-border px-3 py-1.5 font-sans text-xs text-lav-muted transition-colors hover:text-lav-primary disabled:opacity-40"
+                className="flex items-center gap-1.5 transition-colors hover:text-lav-text disabled:opacity-40"
               >
                 {batchLoading ? <Loader2 className="animate-spin" size={12} /> : <PlayCircle size={12} />}
                 Run 100 episodes only
               </button>
             </div>
-          </Card>
+          </div>
 
-          {/* Comparison strip: its trigger lives right next to it now, not in
-              a distant sidebar. */}
-          <Card hover={false}>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-sans text-sm font-semibold uppercase tracking-wide text-lav-muted">
-                Comparison strip: Fixed Rule vs. Thompson vs. LinUCB
+          {/* Comparison strip */}
+          <div className="border-t border-lav-border py-5">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-mono text-[10px] uppercase tracking-wider text-lav-muted">
+                Fixed Rule vs. Thompson vs. LinUCB vs. Naive Retry
               </h3>
               <button
                 onClick={handleCompare}
                 disabled={mode !== 'manual' || loading || compareLoading}
-                title={mode !== 'manual' ? 'Pick a failure type above to compare methods' : undefined}
-                className="flex items-center gap-1.5 rounded-full border border-lav-border px-3 py-1.5 font-sans text-xs text-lav-muted transition-colors hover:text-lav-primary disabled:opacity-40"
+                title={mode !== 'manual' ? 'Pick a failure event above to compare methods' : undefined}
+                className="flex items-center gap-1.5 font-sans text-xs text-lav-muted transition-colors hover:text-lav-text disabled:opacity-40"
               >
                 {compareLoading ? <Loader2 className="animate-spin" size={13} /> : <Scale size={13} />}
                 Compare methods
@@ -372,11 +320,11 @@ export function LiveSimulation() {
             {compareResult ? (
               <CompareLivePanel compareResult={compareResult} />
             ) : (
-              <p className="font-sans text-sm text-lav-muted">
-                No comparison yet. Pick a failure type above and run "Compare methods".
+              <p className="mt-3 font-sans text-sm text-lav-muted">
+                No comparison yet. Pick a failure event above and run "Compare methods".
               </p>
             )}
-          </Card>
+          </div>
         </>
       )}
     </div>

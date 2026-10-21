@@ -240,7 +240,7 @@ export function NonStationarity() {
                 />
                 <Tooltip
                   content={<ChartTooltip formatter={(v) => v.toFixed(3)} />}
-                  cursor={{ fill: 'rgba(167,139,250,0.08)' }}
+                  cursor={{ fill: 'rgba(76,111,255,0.08)' }}
                 />
                 <ReferenceLine y={0} stroke="var(--color-lav-text)" />
                 <Bar
@@ -291,7 +291,7 @@ export function NonStationarity() {
                 />
                 <Tooltip
                   content={<ChartTooltip formatter={(v) => `${(v * 100).toFixed(1)}%`} />}
-                  cursor={{ fill: 'rgba(167,139,250,0.08)' }}
+                  cursor={{ fill: 'rgba(76,111,255,0.08)' }}
                 />
                 <Legend
                   content={
@@ -419,7 +419,7 @@ export function NonStationarity() {
                 />
                 <Tooltip
                   content={<ChartTooltip formatter={(v) => v.toFixed(3)} />}
-                  cursor={{ fill: 'rgba(167,139,250,0.08)' }}
+                  cursor={{ fill: 'rgba(76,111,255,0.08)' }}
                 />
                 <ReferenceLine y={0.68} stroke="var(--color-lav-cost)" strokeDasharray="4 4" label={{ value: 'R = 0.68 (all negative cells above this)', fill: 'var(--color-lav-cost)', fontSize: 11, position: 'insideTopLeft' }} />
                 <Bar

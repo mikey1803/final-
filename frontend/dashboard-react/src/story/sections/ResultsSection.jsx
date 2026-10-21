@@ -153,7 +153,7 @@ export function ResultsSection({ onOpenDashboard }) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.97 }}
           transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
-          className="accent-gradient flex items-center gap-2 rounded-full px-5 py-2.5 font-sans text-sm font-medium text-lav-bg shadow-[0_6px_20px_rgba(0,0,0,0.35)]"
+          className="flex items-center gap-2 rounded bg-lav-primary px-5 py-2.5 font-sans text-sm font-medium text-white"
         >
           <LayoutGrid size={16} />
           Explore the full data dashboard

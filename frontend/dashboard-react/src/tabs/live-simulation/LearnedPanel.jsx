@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
 import { CheckCircle2, Circle, Info } from 'lucide-react'
-import { Card } from '../../components/ui/Card'
 import { FAILURE_TYPES } from '../../data/failureTypes'
 import { RECOVERY_STRATEGIES } from '../../data/recoveryStrategies'
 import { explainFailureType } from '../../lib/demoApi'
@@ -46,12 +45,12 @@ export function LearnedPanel({ demoState }) {
   const seenCount = rows.filter((r) => r.seen).length
 
   return (
-    <Card hover={false} className="border-lav-primary/25 bg-lav-primary/[0.03] p-5">
-      <div className="mb-3 flex items-center justify-between">
-        <p className="font-sans text-xs font-semibold uppercase tracking-wide text-lav-primary">
-          What it's learned so far ({seenCount}/7)
+    <div className="border-t border-lav-border pt-3">
+      <div className="mb-2.5 flex items-center justify-between">
+        <p className="font-mono text-[10px] uppercase tracking-wider text-lav-muted">
+          Learned so far ({seenCount}/7)
         </p>
-        <span className="font-mono text-xs text-lav-muted">ep. {demoState.episode_number}</span>
+        <span className="font-mono text-[10px] text-lav-muted">ep. {demoState.episode_number}</span>
       </div>
       <div className="flex flex-col gap-1.5">
         {rows.map((r) => {
@@ -105,6 +104,6 @@ export function LearnedPanel({ demoState }) {
           )
         })}
       </div>
-    </Card>
+    </div>
   )
 }

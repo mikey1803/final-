@@ -274,7 +274,7 @@ export function ClassifierNoiseSweep() {
                   tick={{ fontFamily: 'Inter, sans-serif', fontSize: 12, fill: 'var(--color-lav-text)' }}
                   stroke="var(--color-lav-border)"
                 />
-                <Tooltip content={<ChartTooltip formatter={pct} />} cursor={{ fill: 'rgba(167,139,250,0.08)' }} />
+                <Tooltip content={<ChartTooltip formatter={pct} />} cursor={{ fill: 'rgba(76,111,255,0.08)' }} />
                 <Bar dataKey="error" name="Median abs. rel. error" radius={[0, 6, 6, 0]} animationDuration={500} animationEasing="ease-out" fill={colorFor('Adaptive (Thompson)')} />
               </BarChart>
             </ResponsiveContainer>
@@ -313,7 +313,7 @@ export function ClassifierNoiseSweep() {
                 />
                 <Tooltip
                   content={<ChartTooltip formatter={(v) => v.toFixed(2)} />}
-                  cursor={{ fill: 'rgba(167,139,250,0.08)' }}
+                  cursor={{ fill: 'rgba(76,111,255,0.08)' }}
                 />
                 <ReferenceLine
                   x={KAPPA_RESULT.threshold}

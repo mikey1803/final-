@@ -2,23 +2,20 @@ import { motion } from 'motion/react'
 import { cn } from '../../lib/utils'
 
 /**
- * Base surface card (dark lavender void surface, hairline border, soft
- * shadow), with a restrained Motion hover lift (y-shift + border-color
- * shift, no scale jump).
+ * Base surface panel: hairline border, flat (no ambient shadow — shadows
+ * are reserved for things that actually float above content, like the
+ * command palette, not every panel on the page). Radius kept modest
+ * rather than the soft/bubbly `rounded-xl` this system used to default to
+ * everywhere, so panels read as structure, not as decoration.
  */
 export function Card({ className, children, hover = true, ...props }) {
   return (
     <motion.div
-      className={cn(
-        'rounded-xl border border-lav-border bg-lav-surface p-6 shadow-[0_2px_8px_rgba(0,0,0,0.20)]',
-        className,
-      )}
+      className={cn('rounded-lg border border-lav-border bg-lav-surface p-6', className)}
       whileHover={
         hover
           ? {
-              y: -2,
-              boxShadow: '0 8px 20px rgba(0,0,0,0.30)',
-              borderColor: 'rgba(167,139,250,0.28)',
+              borderColor: 'rgba(76,111,255,0.32)',
             }
           : undefined
       }

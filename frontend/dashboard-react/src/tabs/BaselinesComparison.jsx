@@ -99,7 +99,7 @@ export function BaselinesComparison() {
                 />
                 <Tooltip
                   content={<ChartTooltip formatter={(v) => `${(v * 100).toFixed(1)}%`} />}
-                  cursor={{ fill: 'rgba(167,139,250,0.08)' }}
+                  cursor={{ fill: 'rgba(76,111,255,0.08)' }}
                 />
                 <Bar
                   dataKey="mean_late_stage_success_rate"
@@ -151,7 +151,7 @@ export function BaselinesComparison() {
                 />
                 <Tooltip
                   content={<ChartTooltip formatter={(v) => v.toFixed(3)} />}
-                  cursor={{ fill: 'rgba(167,139,250,0.08)' }}
+                  cursor={{ fill: 'rgba(76,111,255,0.08)' }}
                 />
                 <ReferenceLine y={0} stroke="var(--color-lav-muted)" strokeDasharray="3 3" />
                 <ReferenceLine y={1} stroke="var(--color-lav-muted)" strokeDasharray="3 3" />

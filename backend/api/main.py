@@ -381,6 +381,54 @@ def compare_live(body: CompareLiveRequest):
     }
 
 
+class BeatBanditRequest(BaseModel):
+    failure_type: str
+    human_strategy: str
+
+
+@app.post("/api/demo/beat-the-bandit")
+def beat_the_bandit(body: BeatBanditRequest):
+    """Head-to-head round: a human-chosen strategy vs. the real persistent
+    Thompson selector's own pick, both sampled against the same active
+    matrix. The bandit only ever learns from its own choice (never the
+    human's), same separation principle as /api/demo/compare-live."""
+    try:
+        true_failure_type = FailureType(body.failure_type)
+    except ValueError:
+        valid = [f.value for f in FailureType]
+        raise HTTPException(status_code=400, detail=f"Unknown failure_type. Use one of {valid}")
+    try:
+        human_strategy = RecoveryStrategy(body.human_strategy)
+    except ValueError:
+        valid = [s.value for s in RecoveryStrategy]
+        raise HTTPException(status_code=400, detail=f"Unknown human_strategy. Use one of {valid}")
+
+    matrix = state.active_matrix
+    human_success = random.random() < matrix[true_failure_type][human_strategy]
+
+    bandit_core = _select_execute_update(true_failure_type, true_failure_type)
+    bandit_won = bandit_core["outcome"] == "success"
+
+    if human_success and not bandit_won:
+        winner = "human"
+    elif bandit_won and not human_success:
+        winner = "bandit"
+    else:
+        winner = "tie"
+
+    return {
+        "true_failure_type": true_failure_type.value,
+        "human_strategy": human_strategy.value,
+        "human_outcome": "success" if human_success else "fail",
+        "bandit_strategy": bandit_core["chosen_strategy"],
+        "bandit_outcome": bandit_core["outcome"],
+        "bandit_strategy_scores_before": bandit_core["strategy_scores_before"],
+        "bandit_strategy_scores_after": bandit_core["strategy_scores_after"],
+        "winner": winner,
+        "episode_number": bandit_core["episode_number"],
+    }
+
+
 @app.post("/api/demo/trigger-shift")
 def trigger_shift():
     """Permute SUCCESS_MATRIX for 2 failure types (real logic from
@@ -513,4 +561,135 @@ def explain(failure_type: str):
         "top_strategy": top_name,
         "per_strategy": per_strategy,
         "explanation": explanation,
+    }
+
+
+class DiagnoseRequest(BaseModel):
+    raw_error: str
+    tool_name: Optional[str] = None
+
+
+@app.post("/api/demo/diagnose")
+def diagnose(body: DiagnoseRequest):
+    """Read-only diagnostic: classify arbitrary error text with the real
+    trained classifier and recommend the bandit's current best strategy for
+    that predicted type. Unlike every other endpoint here, this never
+    touches state.lock, episode_number, or selector.update — there is no
+    ground truth for text pasted from outside the demo, so nothing here is
+    allowed to feed fake learning into the persistent bandit."""
+    if not body.raw_error or not body.raw_error.strip():
+        raise HTTPException(status_code=400, detail="raw_error must not be empty")
+
+    step_context = {"tool_name": body.tool_name or "unknown_tool"}
+    clf = state.classifier
+    predicted_type = clf.predict(body.raw_error, step_context)
+    proba = clf.predict_proba(body.raw_error, step_context)
+    confidences = _confidences_json(state.selector, predicted_type)
+    top_strategy, top_confidence = max(confidences.items(), key=lambda kv: kv[1])
+
+    return {
+        "predicted_failure_type": predicted_type.value,
+        "probabilities": {ft.value: round(p, 4) for ft, p in proba.items()},
+        "recommended_strategy": top_strategy,
+        "recommended_strategy_confidence": top_confidence,
+        "strategy_confidences": confidences,
+    }
+
+
+class WhatIfMatrixRequest(BaseModel):
+    matrix: dict[str, dict[str, float]]
+    n_episodes: int = 200
+
+
+@app.post("/api/demo/whatif-matrix")
+def whatif_matrix(body: WhatIfMatrixRequest):
+    """Race Thompson Sampling, Fixed Rule, LinUCB, and Naive Retry against a
+    USER-SUPPLIED success-rate matrix instead of the real SUCCESS_MATRIX --
+    makes the paper's Task 9 finding (2 of 3 hand-constructed alternative
+    matrices break the headline "Fixed Rule wins stationary" ranking
+    outright) something a visitor can test themselves, not just read.
+    Fresh throwaway instances only (same pattern as batch_run) -- never
+    touches the persistent demo state, and there is no ground truth to
+    learn from here anyway since the matrix is arbitrary user input."""
+    try:
+        parsed: dict[FailureType, dict[RecoveryStrategy, float]] = {}
+        for ft_key, row in body.matrix.items():
+            ft = FailureType(ft_key)
+            parsed[ft] = {}
+            for strat_key, value in row.items():
+                strat = RecoveryStrategy(strat_key)
+                if not (0.0 <= value <= 1.0):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"probability out of [0,1] range for {ft_key}/{strat_key}: {value}",
+                    )
+                parsed[ft][strat] = value
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"invalid failure_type or strategy name: {exc}")
+
+    missing = [ft.value for ft in FailureType if ft not in parsed]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"matrix missing failure types: {missing}")
+    for ft in FailureType:
+        missing_strats = [s.value for s in RecoveryStrategy if s not in parsed[ft]]
+        if missing_strats:
+            raise HTTPException(status_code=400, detail=f"matrix missing strategies for {ft.value}: {missing_strats}")
+
+    n = max(1, min(body.n_episodes, 500))
+    rng = random.Random()
+    types = list(FailureType)
+
+    thompson = SelectorFactory.create("thompson_sampling", seed=rng.randint(0, 1_000_000))
+    fixed = FixedRuleBaseline()
+    linucb = LinUCBBaseline(alpha=1.0, seed=rng.randint(0, 1_000_000))
+    naive = NaiveRetryBaseline()
+
+    successes = {"thompson": 0, "fixed_rule": 0, "linucb": 0, "naive_retry": 0}
+    rows = []
+    for ep in range(1, n + 1):
+        ft = rng.choice(types)
+
+        t_strategy = thompson.select_strategy(ft)
+        t_success = rng.random() < parsed[ft][t_strategy]
+        thompson.update(ft, t_strategy, success=t_success, cost=get_action_cost(t_strategy), episode_number=ep)
+        successes["thompson"] += int(t_success)
+
+        f_strategy = fixed.select_strategy(ft)
+        f_success = rng.random() < parsed[ft][f_strategy]
+        successes["fixed_rule"] += int(f_success)
+
+        l_strategy = linucb.select_strategy(ft)
+        l_success = rng.random() < parsed[ft][l_strategy]
+        linucb.update(ft, l_strategy, success=l_success, cost=get_action_cost(l_strategy))
+        successes["linucb"] += int(l_success)
+
+        n_strategy = naive.select_strategy(ft)
+        n_success = rng.random() < parsed[ft][n_strategy]
+        successes["naive_retry"] += int(n_success)
+
+        rows.append({
+            "episode": ep,
+            "thompson_success_rate": round(successes["thompson"] / ep, 4),
+            "fixed_rule_success_rate": round(successes["fixed_rule"] / ep, 4),
+            "linucb_success_rate": round(successes["linucb"] / ep, 4),
+            "naive_retry_success_rate": round(successes["naive_retry"] / ep, 4),
+        })
+
+    final = rows[-1]
+    ranking = sorted(
+        [
+            ("Thompson Sampling", final["thompson_success_rate"]),
+            ("Fixed Rule", final["fixed_rule_success_rate"]),
+            ("LinUCB", final["linucb_success_rate"]),
+            ("Naive Retry", final["naive_retry_success_rate"]),
+        ],
+        key=lambda kv: kv[1],
+        reverse=True,
+    )
+
+    return {
+        "n_episodes": n,
+        "rows": rows,
+        "final_ranking": [{"method": m, "success_rate": r} for m, r in ranking],
+        "fixed_rule_wins": ranking[0][0] == "Fixed Rule",
     }
