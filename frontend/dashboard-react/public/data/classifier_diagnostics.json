@@ -1,0 +1,128 @@
+{
+  "labels": [
+    "tool_timeout",
+    "tool_error",
+    "wrong_tool_selected",
+    "hallucinated_output",
+    "malformed_output",
+    "context_loss",
+    "ambiguous_instruction"
+  ],
+  "confusion_matrix": [
+    [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0533,
+      0.9333,
+      0.0133,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.1467,
+      0.18,
+      0.0,
+      0.0333,
+      0.64,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "per_class": {
+    "tool_timeout": {
+      "precision": 0.8333,
+      "recall": 1.0,
+      "f1": 0.9091,
+      "support": 150
+    },
+    "tool_error": {
+      "precision": 0.8383,
+      "recall": 0.9333,
+      "f1": 0.8833,
+      "support": 150
+    },
+    "wrong_tool_selected": {
+      "precision": 0.9868,
+      "recall": 1.0,
+      "f1": 0.9934,
+      "support": 150
+    },
+    "hallucinated_output": {
+      "precision": 0.9677,
+      "recall": 1.0,
+      "f1": 0.9836,
+      "support": 150
+    },
+    "malformed_output": {
+      "precision": 1.0,
+      "recall": 0.64,
+      "f1": 0.7805,
+      "support": 150
+    },
+    "context_loss": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 150
+    },
+    "ambiguous_instruction": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 150
+    }
+  },
+  "macro": {
+    "accuracy": 0.939,
+    "precision": 0.9466,
+    "recall": 0.939,
+    "f1": 0.9357
+  },
+  "n_per_type": 150,
+  "seed": 4242
+}
