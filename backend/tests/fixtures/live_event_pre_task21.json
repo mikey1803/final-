@@ -1,0 +1,47 @@
+{
+  "session_id": "fixture-session-0000",
+  "step_index": 0,
+  "tool_name": "countriesnow",
+  "tool_args": {
+    "country": "India"
+  },
+  "raw_error": "TimeoutError: SYNTHETIC FIXTURE - not a real observation",
+  "agent_state": {
+    "goal": "Find the capital city of India using the countriesnow tool.",
+    "conversation_history": [
+      {
+        "role": "user",
+        "content": "Find the capital city of India using the countriesnow tool."
+      }
+    ],
+    "tool_call_index": 0
+  },
+  "captured_at": "2026-10-21T00:00:00+00:00",
+  "task_id": "fixture_task_01",
+  "http_status": null,
+  "raw_response_body": null,
+  "latency_ms": 201.5,
+  "injected": true,
+  "injected_kind": "timeout",
+  "tool_health": {
+    "countriesnow": {
+      "healthy": true,
+      "http_status": 200,
+      "latency_ms": 100.0,
+      "error_text": null
+    }
+  },
+  "true_type": null,
+  "labelled_by": null,
+  "labelled_at": null,
+  "second_choice_type": null,
+  "label_confidence": null,
+  "relabel_type": null,
+  "relabelled_by": null,
+  "relabelled_at": null,
+  "predicted_type": null,
+  "predicted_proba": null,
+  "schema_version": "1",
+  "source": "live",
+  "event_id": "c02bbcb99c1ad530cfce1cdf"
+}
