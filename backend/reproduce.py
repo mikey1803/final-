@@ -101,8 +101,16 @@ class StageError(RuntimeError):
 @dataclass
 class ComparisonResult:
     artifact: str
-    status: str  # "exact" | "numeric_match" | "mismatch" | "not_compared" | "skipped_expensive" | "produced_new"
+    status: str  # "exact" | "numeric_match" | "schema_match" | "mismatch" | "not_compared" | "skipped_expensive" | "produced_new"
     detail: str = ""
+
+
+# Point-in-time captures of THIS machine written by capture_environment.py. They are
+# expected to change after an OS update or a package install, so (as Stage 6 states)
+# only their schema is a reproducibility target; value differences are reported, never
+# treated as a pipeline failure. environment_llm_model_pins.parquet is derived from
+# logged API responses, not the machine, and stays under the full value comparison.
+SCHEMA_ONLY_ARTIFACTS = frozenset({"environment_hardware.parquet", "environment_packages.parquet"})
 
 
 @dataclass
@@ -207,6 +215,29 @@ def compare_table(production_path: Path, candidate_path: Path, exclude_cols: tup
     return ComparisonResult(name, "mismatch", f"columns differ beyond tolerance: {mismatched_cols}")
 
 
+def compare_schema_only(production_path: Path, candidate_path: Path, exclude_cols: tuple[str, ...] = ()) -> ComparisonResult:
+    """Schema-only comparison (column names + dtypes) for SCHEMA_ONLY_ARTIFACTS.
+    Value differences are summarised in the detail text so they stay visible,
+    but only a schema difference is a mismatch."""
+    name = production_path.name
+    if not candidate_path.exists():
+        return ComparisonResult(name, "mismatch", "candidate was not produced")
+    try:
+        prod = pd.read_parquet(production_path)
+        cand = pd.read_parquet(candidate_path)
+    except Exception as exc:  # noqa: BLE001
+        return ComparisonResult(name, "mismatch", f"failed to read one of the two files: {exc}")
+    prod_schema = {c: str(t) for c, t in prod.dtypes.items() if c not in exclude_cols}
+    cand_schema = {c: str(t) for c, t in cand.dtypes.items() if c not in exclude_cols}
+    if prod_schema != cand_schema:
+        return ComparisonResult(name, "mismatch", f"schema differs: production={prod_schema} candidate={cand_schema}")
+    values = compare_table(production_path, candidate_path, exclude_cols=exclude_cols)
+    if values.status in ("exact", "numeric_match"):
+        return ComparisonResult(name, "schema_match", f"schema identical; values also identical ({values.detail})")
+    return ComparisonResult(name, "schema_match",
+                            f"schema identical; values differ (machine-specific, informational only): {values.detail}")
+
+
 def run_with_snapshot_rollback(
     report: PipelineReport,
     script: str,
@@ -238,6 +269,8 @@ def run_with_snapshot_rollback(
                 shutil.copy2(f, candidate_copy)
             if snapshots[f] is None:
                 report.comparisons.append(ComparisonResult(f.name, "produced_new", "no prior production file existed"))
+            elif f.suffix == ".parquet" and f.name in SCHEMA_ONLY_ARTIFACTS:
+                report.comparisons.append(compare_schema_only(snapshots[f], candidate_copy, exclude_cols=exclude_cols))
             elif f.suffix == ".parquet":
                 report.comparisons.append(compare_table(snapshots[f], candidate_copy, exclude_cols=exclude_cols))
             elif f.suffix == ".pdf":
