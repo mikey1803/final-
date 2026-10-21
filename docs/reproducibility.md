@@ -104,6 +104,18 @@ This means: **someone who clones this repository with no API keys at all
 can still regenerate every analysis, every figure, and every table** —
 confirmed by actually running the pipeline offline end-to-end (§6).
 
+### Phase 1 baseline table (legacy harness): `experiments/regenerate_phase1_summary.py`
+
+| | |
+|---|---|
+| What | Regenerates `results/phase1/` (11 methods, 500 episodes × 50 trials) through the legacy `src/evaluation/harness.py`. It reproduces the 2026-07-28 run exactly (verified 2026-10-21). |
+| Seeds | `base_seed=123`. Per trial: `trial_seed = 123 + 1000·trial`; the type stream is seeded with `trial_seed` and the outcome stream with `trial_seed + 7`. |
+| Offline | Yes. `GROQ_API_KEY` is forced empty, and the One-Shot LLM baseline is pinned to its recovered original 2026-07-28 answers (see `docs/PAPER_PREP.md` §6, 2026-10-21 entry). |
+| Why pinning is required | All methods share one outcome stream, so with any other One-Shot answers none of the 11 rows reproduce. |
+| One-Shot row | Kept at its original numbers, per `results/phase1/comparison_summary.provenance.json`. |
+| Run | `python experiments/regenerate_phase1_summary.py` (full) or `--smoke` (writes to `results/phase1_smoke/`). |
+| `reproduce.py` | Stage 2 still treats `results/phase1/` as legacy phase evidence. This script is not yet a pipeline stage. |
+
 ### Live data source (not regenerable): the drift-atlas probe (Task 25, C3)
 
 | | |
