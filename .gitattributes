@@ -1,0 +1,4 @@
+# The drift probe binds every record to sha256(probe/targets.yaml), so its bytes
+# must be identical on every checkout (Windows autocrlf=true would otherwise
+# rewrite line endings and change the hash).
+probe/** text eol=lf

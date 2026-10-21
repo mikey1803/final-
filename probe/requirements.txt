@@ -1,0 +1,8 @@
+# Pinned to the versions in backend/requirements.lock.txt (Python 3.13 environment),
+# transitive dependencies included, so the CI probe runs the exact locked stack.
+requests==2.34.2
+PyYAML==6.0.3
+certifi==2026.6.17
+charset-normalizer==3.4.9
+idna==3.18
+urllib3==2.7.0
