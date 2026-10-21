@@ -104,6 +104,18 @@ This means: **someone who clones this repository with no API keys at all
 can still regenerate every analysis, every figure, and every table** —
 confirmed by actually running the pipeline offline end-to-end (§6).
 
+### Live data source (not regenerable): the drift-atlas probe (Task 25, C3)
+
+| | |
+|---|---|
+| What | `probe/run_probe.py` calls 24 real APIs every 6 h from GitHub Actions (`.github/workflows/drift-probe.yml`). |
+| Seeds | **None.** The code uses no randomness; the measured world is not deterministic. |
+| Dataset | The `data` branch, as of a given commit, filtered to `targets_sha256` = the frozen value in `docs/experiments/drift_atlas_preregistration.md` §1. Cite that commit hash to pin the exact observations used. |
+| Re-running | Re-running produces **new** observations of a changed world, not a reproduction. Local runs write to a temp dir and never enter the dataset. |
+| `reproduce.py` | **Not registered yet, deliberately.** Calling live APIs would break the offline guarantee above. Task 25 part 2's analysis (offline, over a pinned `data`-branch commit) will be registered in `reproduce.py` with that commit hash as its input. |
+| Tests | `backend/tests/test_probe.py` (mocked network) runs in the normal suite. |
+| Keys | `GROQ_API_KEY` and `GOOGLE_API_KEY` as GitHub Actions secrets. NVIDIA's model list is public, so no key is needed. |
+
 ## 5. The two modes
 
 | | `--mode validation` | `--mode paper` |

@@ -2,7 +2,23 @@
 
 *A single up-to-date snapshot of what this project is, what has been built, and where things currently stand. For the plain-language walkthrough of how each component works, see [`PROJECT_EXPLAINED.md`](PROJECT_EXPLAINED.md). For the full research dossier (every experimental phase, exact numbers, paper outline), see [`PAPER_PREP.md`](PAPER_PREP.md). For a task-by-task build log explaining what each of the 16 implementation tasks did and how it improved the project, see [`TASK_HISTORY.md`](TASK_HISTORY.md).*
 
-Last updated: 2026-08-04.
+Last updated: 2026-08-04 (sections 1–7). Section 0 added 2026-10-21.
+
+> **Warning: sections 1–7 below are stale.** They describe the state as of 2026-08-04. A full rewrite is Task 20 step 8, still pending. Known-wrong statements:
+> - §4's git note: the restructure IS committed (`3999e27`, 2026-08-25) and pushed to the public remote `mikey1803/final-`.
+> - §5's "Task 14 in progress": it is complete (see `docs/TASK_HISTORY.md` and `docs/experiments/instrumentation.md`).
+
+## 0. Current work (2026-10-21) — journal extension "v2"
+
+| Task | Status |
+|---|---|
+| Task 20 (housekeeping) | Steps 1–2 done: git-state report and secret scan; no secrets found anywhere in history. Step 5 done: `test_memory_basic` / `test_memory_selector_roundtrip` now use `tmp_path`; the full suite is green. Step 7's model is decided: One-Shot LLM → `openai/gpt-oss-20b`, regeneration pending. Still awaiting decisions on `.gitignore` fixes, the parent-folder repo and remote visibility. Steps 3, 4, 6 and 8–10 not started. |
+| `reproduce.py` fix (2026-10-21) | Validation had failed only on the two machine-specific environment captures: a Windows update (`10.0.26200` → `10.0.26300`) and a stray `pymupdf 1.28.2` install that is not in the lockfile. Stage 6 already documented these as schema-only, but the code compared values. They are now compared by schema (`schema_match`), with value differences reported for information. The production snapshot is unchanged. |
+| **Task 25 part 1 (C3 drift probe)** | **Instrument built and frozen; not yet collecting.** Files: `probe/` (targets, probe, schema hash), `.github/workflows/drift-probe.yml`, `backend/tests/test_probe.py` (37 tests), `docs/experiments/drift_atlas.md`, `docs/experiments/drift_atlas_preregistration.md` (FROZEN v1), `probe/seed_events.md`. Two local smoke runs on 2026-10-21 (not part of the dataset): 24/24 targets 2xx, sanity ok. Collection starts when master is pushed and the GitHub secrets `GROQ_API_KEY` / `GOOGLE_API_KEY` are set. Seed-event dates: `[DATE REQUIRED]`. |
+| Task 25 part 2 (analysis) | Not started. Its analysis pre-registration must be committed before collected data is inspected beyond health checks (pre-reg §6). |
+| Tasks 21–24, 26–29 | Not started. |
+
+**Finding from the probe smoke run that affects Task 20 step 7.** Groq's model list on 2026-10-21 no longer contains `qwen/qwen3.6-27b`, which was listed on 2026-08-20. It now lists `qwen/qwen3.8-27b`, and `groq/compound`/`compound-mini` are gone. Details: `probe/seed_events.md` row 6.
 
 ---
 
