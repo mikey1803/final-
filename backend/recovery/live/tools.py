@@ -56,6 +56,11 @@ class ToolCallResult:
     latency_ms: float
     injected: bool = False
     injected_kind: Optional[str] = None  # "timeout" | "malformed_request" | None
+    # Untruncated response text (Task 21). Never stored in a FailureEvent --
+    # events keep the truncated ``body`` exactly as before; only recovery
+    # executors that must parse the whole response (VERIFY's v2 schema
+    # check) read this. None when no response was received.
+    full_text: Optional[str] = None
 
 
 _MAX_BODY_CHARS = 2000
@@ -78,12 +83,14 @@ def _do_request(
             return ToolCallResult(
                 success=True, http_status=resp.status_code,
                 body=_truncate(resp.text), error_text=None, latency_ms=latency_ms,
+                full_text=resp.text,
             )
         return ToolCallResult(
             success=False, http_status=resp.status_code,
             body=_truncate(resp.text),
             error_text=f"HTTP {resp.status_code}: {_truncate(resp.text)}",
             latency_ms=latency_ms,
+            full_text=resp.text,
         )
     except requests.exceptions.Timeout as exc:
         latency_ms = (time.monotonic() - start) * 1000.0
