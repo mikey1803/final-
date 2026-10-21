@@ -10,6 +10,13 @@ actually reached cleanly.
 Reuses ``src.agent.llm_client.parse_tool_request`` (the existing Groq
 wrapper, already reading ``GROQ_API_KEY`` from ``.env`` via
 ``_ensure_env_loaded``) rather than adding a second LLM client.
+
+Task 21: ``run_task(..., recovery=InlineRecovery(...))`` additionally runs one
+inline recovery strategy on a captured tool-call failure and stores a
+``RecoveryAttempt`` next to the event (``recovery.live.inline_recovery``,
+``docs/live_pilot/strategy_definitions_v2.md``). The task still stops at that
+first failure either way. With ``recovery=None`` (the default) behaviour is
+exactly the Phase 1 collection loop above -- no strategy is applied.
 """
 
 from __future__ import annotations
@@ -17,11 +24,16 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from recovery.live.event_schema import AgentState, FailureEvent, Task
 from recovery.live.event_store import EventStore
+from recovery.live.inline_recovery import NOT_APPLICABLE_SELECTION_FAILURE
 from recovery.live.tools import TOOL_DESCRIPTIONS, FlakyWrapper
+
+if TYPE_CHECKING:
+    from recovery.live.inline_recovery import InlineRecovery
+    from recovery.live.recovery_attempt import RecoveryAttempt
 
 __all__ = ["TaskOutcome", "run_task"]
 
@@ -33,6 +45,8 @@ class TaskOutcome:
     completed: bool
     failure_event: Optional[FailureEvent] = None
     steps_completed: int = 0
+    recovery_attempt: Optional["RecoveryAttempt"] = None
+    recovery_skipped_reason: Optional[str] = None
 
 
 def _now_iso() -> str:
@@ -55,6 +69,7 @@ def run_task(
     wrapper: FlakyWrapper,
     session_id: Optional[str] = None,
     tool_health: Optional[dict] = None,
+    recovery: Optional["InlineRecovery"] = None,
 ) -> TaskOutcome:
     """Run one task's steps in sequence. Stops and captures a FailureEvent
     at the first failure; returns ``completed=True`` only if every step
@@ -90,7 +105,12 @@ def run_task(
                 tool_health=tool_health,
             )
             store.write(event)
-            return TaskOutcome(task.task_id, session_id, completed=False, failure_event=event, steps_completed=step_index)
+            outcome = TaskOutcome(task.task_id, session_id, completed=False, failure_event=event, steps_completed=step_index)
+            if recovery is not None:
+                # v2 defines strategies for tool calls only: counted, not recovered.
+                recovery.recover(event, task, step_goal, None, history, wrapper.call)
+                outcome.recovery_skipped_reason = NOT_APPLICABLE_SELECTION_FAILURE
+            return outcome
 
         tool_name, tool_args = picked["tool"], picked["args"]
         result = wrapper.call(tool_name, tool_args)
@@ -115,7 +135,10 @@ def run_task(
                 tool_health=tool_health,
             )
             store.write(event)
-            return TaskOutcome(task.task_id, session_id, completed=False, failure_event=event, steps_completed=step_index)
+            outcome = TaskOutcome(task.task_id, session_id, completed=False, failure_event=event, steps_completed=step_index)
+            if recovery is not None:
+                outcome.recovery_attempt = recovery.recover(event, task, step_goal, result, history, wrapper.call)
+            return outcome
 
         history.append({
             "role": "tool", "tool": tool_name, "args": tool_args,

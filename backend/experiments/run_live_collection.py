@@ -102,6 +102,16 @@ def main() -> None:
              "(deployment-distribution campaign). Refuses to start if the manifest mixes "
              "the two. Omit for the 28-task pilot, which deliberately mixes both.",
     )
+    parser.add_argument(
+        "--inline-recovery", action="store_true",
+        help="Task 21: on each captured tool-call failure, run one uniformly drawn recovery "
+             "strategy (docs/live_pilot/strategy_definitions_v2.md) and store a RecoveryAttempt "
+             "under <store>/recoveries/. Off by default: plain Phase 1 collection applies no strategy.",
+    )
+    parser.add_argument("--definition-version", choices=["v1", "v2"], default="v2")
+    parser.add_argument("--session-seed", type=int, default=None,
+                        help="Seed for inline strategy draws (default: derived from the clock, and printed)")
+    parser.add_argument("--tasks", default=None, help="Comma-separated task_ids to run (subset of the list)")
     args = parser.parse_args()
 
     if args.manifest is not None:
@@ -117,8 +127,29 @@ def main() -> None:
         tasks = STARTER_TASKS
         print(f"No --manifest given; using the {len(tasks)}-task STARTER_TASKS list.")
 
+    if args.tasks:
+        wanted = args.tasks.split(",")
+        tasks = [t for t in tasks if t.task_id in wanted]
+        missing = set(wanted) - {t.task_id for t in tasks}
+        if missing:
+            raise SystemExit(f"unknown task_id(s): {sorted(missing)}")
+
     store = EventStore(args.store)
     wrapper = FlakyWrapper(injection_rate=args.injection_rate)
+    recovery = None
+    if args.inline_recovery:
+        import time as _time
+        import zlib
+
+        from recovery.live.executors.llm import GroqChatClient
+        from recovery.live.inline_recovery import InlineRecovery
+        from recovery.live.recovery_attempt import RecoveryStore
+
+        seed = args.session_seed if args.session_seed is not None else zlib.crc32(str(_time.time_ns()).encode())
+        recovery = InlineRecovery(store=RecoveryStore(args.store), session_seed=seed,
+                                  definition_version=args.definition_version, llm=GroqChatClient())
+        print(f"Inline recovery ON: definition {args.definition_version}, session_seed={seed}, "
+              f"arms={recovery.arms}, budget={recovery.budget.as_dict()}")
 
     print("Checking tool health (once, session start) ...")
     tool_health = health_check_all_tools()
@@ -135,8 +166,15 @@ def main() -> None:
     for run_idx in range(args.n_runs):
         for task in tasks:
             attempts_by_task_id[task.task_id] = attempts_by_task_id.get(task.task_id, 0) + 1
-            outcome = run_task(task, store, wrapper, tool_health=tool_health)
+            outcome = run_task(task, store, wrapper, tool_health=tool_health, recovery=recovery)
             status = "OK" if outcome.completed else f"FAILED at step {outcome.steps_completed}"
+            if outcome.recovery_attempt is not None:
+                a = outcome.recovery_attempt
+                status += (f" -> {a.strategy}: success={a.result['success']} "
+                           f"({a.result['evidence']['reason']}, attempts={a.result['attempts']}, "
+                           f"tokens={a.result['cost_tokens']})")
+            elif outcome.recovery_skipped_reason:
+                status += f" -> recovery skipped ({outcome.recovery_skipped_reason})"
             print(f"[run {run_idx}] {task.task_id:24s} {status}")
             if outcome.completed:
                 n_completed += 1
@@ -145,6 +183,8 @@ def main() -> None:
 
     store.rebuild_index()
     print(f"\nDone. completed={n_completed} failed(captured)={n_failed}")
+    if recovery is not None:
+        print(f"Inline recovery: {recovery.failure_index} attempt(s) written; skipped: {recovery.skipped or 'none'}")
     print("Progress:", store.labelling_progress())
 
     if args.manifest is not None:
