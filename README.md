@@ -331,6 +331,10 @@ cd frontend/dashboard-react
 npm run dev
 ```
 
+Or start both with one command from the repo root: `npm install` once, then `npm run dev` (runs the two
+via `concurrently`, see the root `package.json`). **This root script is currently Windows-only**: its
+`backend` step calls `..\.venv\Scripts\python.exe`. On macOS/Linux use the two-terminal commands above.
+
 Then open `http://localhost:5173`, go to Data Dashboard -> Live Simulation. This uses its own SQLite file
 (`backend/data/demo_outcomes.db`), kept separate from `backend/data/outcomes.db` so clicking around the
 demo never touches the real evaluation results.

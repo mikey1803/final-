@@ -1,0 +1,12 @@
+{
+  "name": "failure-aware-agent",
+  "private": true,
+  "scripts": {
+    "backend": "cd backend && ..\\.venv\\Scripts\\python.exe -m uvicorn api.main:app --reload --port 8000",
+    "frontend": "cd frontend/dashboard-react && npm run dev",
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm:backend\" \"npm:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}
