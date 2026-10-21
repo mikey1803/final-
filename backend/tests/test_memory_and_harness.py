@@ -11,9 +11,9 @@ from src.failures.taxonomy import FailureType
 from src.recovery.strategies import RecoveryStrategy
 
 
-def test_memory_basic():
+def test_memory_basic(tmp_path):
     """Record a few rows, read them back, check aggregation."""
-    mem = OutcomeMemory(db_path=Path(__file__).resolve().parent.parent / "data" / "test_memory.db")
+    mem = OutcomeMemory(db_path=tmp_path / "test_memory.db")
     mem.reset()
 
     mem.record("tool_timeout", "retry", True, 1.0, 1)
@@ -41,9 +41,9 @@ def test_memory_basic():
     Path(mem._path).unlink(missing_ok=True)
 
 
-def test_memory_selector_roundtrip():
+def test_memory_selector_roundtrip(tmp_path):
     """Record outcomes via selector, then reload into a fresh selector."""
-    db_path = Path(__file__).resolve().parent.parent / "data" / "test_roundtrip.db"
+    db_path = tmp_path / "test_roundtrip.db"
     mem = OutcomeMemory(db_path=db_path)
     mem.reset()
 
