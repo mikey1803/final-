@@ -12,6 +12,12 @@ used up the cap).
 ``LAYER1_SOURCE_SHA256`` pins the Layer 1 function this copies; a test fails
 if Layer 1 ever changes, and another checks the prompts are byte-identical.
 Every call is logged (empty reply or not) for the empty-reply rate.
+
+D-9: an HTTP 400 ``tool_use_failed`` (the model emitted a native tool call --
+the Layer 1 wording "by calling exactly one tool" invites it) is raised as
+``ToolUseFailed`` (a ``ValueError``), so it is an agent-side
+``malformed_output`` like any other unusable reply, with the model's
+``failed_generation`` kept.
 """
 
 from __future__ import annotations
@@ -20,11 +26,11 @@ import json
 from datetime import datetime, timezone
 from typing import Optional
 
-from recovery.live.executors.base import LLMClient
+from recovery.live.executors.base import LLMClient, LLMError
 from recovery.live.tools import TOOL_DESCRIPTIONS
 
 __all__ = ["SELECTOR_MAX_TOKENS", "SELECTOR_REASONING_EFFORT", "LAYER1_SOURCE_SHA256", "selector_prompt",
-           "V3Selector"]
+           "V3Selector", "ToolUseFailed", "tool_use_failed_generation"]
 
 SELECTOR_MAX_TOKENS = 300
 SELECTOR_REASONING_EFFORT = "low"
@@ -45,6 +51,31 @@ def selector_prompt(user_request: str, tool_descriptions: list[dict]) -> str:
         "choosing the single best tool and filling in its arguments from the request. "
         "No other text, no markdown formatting."
     )
+
+
+class ToolUseFailed(ValueError):
+    """D-9: the provider rejected the reply because the model emitted a native
+    tool call instead of the requested JSON text (HTTP 400 ``tool_use_failed``).
+    An unusable selection -- agent-side ``malformed_output`` -- not a provider fault.
+    ``failed_generation`` is the model's attempted call, from the error body."""
+
+    def __init__(self, failed_generation: Optional[str]) -> None:
+        super().__init__("LLM returned a native tool call instead of the requested JSON text "
+                         f"(tool_use_failed): {failed_generation!r}")
+        self.failed_generation = failed_generation
+
+
+def tool_use_failed_generation(exc: Exception) -> Optional[tuple]:
+    """``(failed_generation,)`` if ``exc`` is a Groq HTTP 400 ``tool_use_failed``, else None."""
+    if not isinstance(exc, LLMError) or getattr(exc, "status", None) != 400 or not getattr(exc, "body", None):
+        return None
+    try:
+        err = json.loads(exc.body).get("error") or {}
+    except (json.JSONDecodeError, AttributeError):
+        return None
+    if err.get("code") != "tool_use_failed":
+        return None
+    return (err.get("failed_generation"),)
 
 
 def _parse_like_layer1(raw: str) -> dict:
@@ -86,6 +117,11 @@ class V3Selector:
         try:
             reply = self.llm.complete(prompt, max_tokens=SELECTOR_MAX_TOKENS, timeout_s=SELECTOR_TIMEOUT_S)
         except Exception as exc:
+            tuf = tool_use_failed_generation(exc)
+            if tuf is not None:                      # D-9: an unusable selection, not a provider fault
+                rec.update(outcome="tool_use_failed", failed_generation=tuf[0])
+                self.log.append(rec)
+                raise ToolUseFailed(tuf[0]) from None
             rec.update(outcome="provider_error", error=f"{type(exc).__name__}: {exc}"[:300])
             self.log.append(rec)
             raise

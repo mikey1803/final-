@@ -40,6 +40,7 @@ __all__ = [
 ]
 
 SELECTION_FAILURE_TOOL = "<llm_tool_selection>"
+_NO_FG = object()
 EXPECTED_ARGS: dict[str, frozenset] = {t["name"]: frozenset(t["args"]) for t in TOOL_DESCRIPTIONS}
 
 
@@ -53,6 +54,7 @@ class Selection:
     args: Optional[dict]
     kind: Optional[str]        # None (usable) | "malformed_output" | "wrong_tool_selected"
     reply_text: str            # the model's reply (or the parser's error text quoting it)
+    detail: Optional[dict] = None   # D-9: {"tool_use_failed": True, "failed_generation": ...}
 
     @property
     def usable(self) -> bool:
@@ -69,7 +71,9 @@ def validate_selection(select: Callable[[str], dict], step_goal: str) -> Selecti
     try:
         picked = select(step_goal)
     except ValueError as exc:
-        return Selection(None, None, "malformed_output", str(exc))
+        fg = getattr(exc, "failed_generation", _NO_FG)
+        detail = None if fg is _NO_FG else {"tool_use_failed": True, "failed_generation": fg}
+        return Selection(None, None, "malformed_output", str(exc), detail)
     except Exception as exc:  # provider / network failure: not the model's output
         raise SelectionProviderError(f"{type(exc).__name__}: {exc}"[:300]) from None
     if not isinstance(picked, dict) or "tool" not in picked or not isinstance(picked.get("args"), dict):
@@ -110,7 +114,8 @@ def _issue(ctx: SelectionFailureContext, ev: Evidence, tool: str, args: dict) ->
 def _rerun(ctx: SelectionFailureContext, ev: Evidence) -> Selection:
     sel = validate_selection(ctx.select, ctx.step_goal)
     ev.extra.setdefault("selection_reruns", []).append(
-        {"kind": sel.kind, "tool": sel.tool, "args": sel.args, "reply_excerpt": sel.reply_text[:200]})
+        {"kind": sel.kind, "tool": sel.tool, "args": sel.args, "reply_excerpt": sel.reply_text[:200],
+         "detail": sel.detail})
     return sel
 
 

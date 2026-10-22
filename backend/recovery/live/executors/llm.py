@@ -99,7 +99,7 @@ class GroqChatClient:
         latency_ms = (time.monotonic() - start) * 1000.0
         self.last_rate_limit = rate_limit_info(resp.headers) or self.last_rate_limit
         if not resp.ok:
-            raise LLMError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+            raise LLMError(f"HTTP {resp.status_code}: {resp.text[:300]}", status=resp.status_code, body=resp.text)
         try:
             body = resp.json()
             text = body["choices"][0]["message"].get("content") or ""

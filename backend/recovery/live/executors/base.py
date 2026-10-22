@@ -111,7 +111,15 @@ class RecoveryResult:
 
 
 class LLMError(RuntimeError):
-    """The LLM provider call failed (HTTP error, timeout, malformed envelope)."""
+    """The LLM provider call failed (HTTP error, timeout, malformed envelope).
+
+    ``status`` / ``body`` carry the HTTP status and the full response body when
+    there was one (the message itself stays clipped)."""
+
+    def __init__(self, message: str, status: Optional[int] = None, body: Optional[str] = None) -> None:
+        super().__init__(message)
+        self.status = status
+        self.body = body
 
 
 @dataclass(frozen=True)

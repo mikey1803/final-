@@ -74,6 +74,8 @@ def load_attempts_frame(root: Path) -> pd.DataFrame:
             "no_action_taken": bool(a.get("no_action_taken")), "untranslatable": ev.get("reason") == "untranslatable_args",
             "task_completed": v3.get("task_completed"), "task_completed_applicable": v3.get("task_completed_applicable"),
             "failure_ordinal": v3.get("failure_ordinal"), "h1_exempt_natural": bool(v3.get("h1_exempt_natural")),
+            "outage_k": v3.get("outage_k"), "outage_remaining": v3.get("outage_remaining"),
+            "h1_exempt_outage_end": bool(v3.get("h1_exempt_outage_end")),
         })
     df = pd.DataFrame(rows)
     if df.empty:
@@ -170,9 +172,11 @@ def manipulation_checks(root: Path) -> dict:
     q = quarantined_sessions(root)
     res = [r for r in _read_dir(Path(root) / "v3_resends") if int(r["session_seed"]) not in q]
     for blk in BLOCK_ORDER:
-        inj = [r for r in res if r["block_label"] == blk and r["fault_origin"] == "injected"]
+        inj = [r for r in res if r["block_label"] == blk and r["fault_origin"] == "injected"
+               and not r.get("h1_exempt_outage_end")]
         out["resend_on_injected"][blk] = {"n": len(inj), "successes": int(sum(bool(r.get("outcome")) for r in inj))}
     out["h1_exempt_natural"] = int(sum(bool(r.get("h1_exempt_natural")) for r in res))
+    out["h1_exempt_outage_end"] = int(sum(bool(r.get("h1_exempt_outage_end")) for r in res))
     logs = load_injection_logs(root)
     if not logs.empty:
         logs = logs[~logs["session_seed"].astype(int).isin(q)]
@@ -263,11 +267,11 @@ def selector_summary(root: Path) -> pd.DataFrame:
     out = df.groupby("actor")["outcome"].value_counts().unstack(fill_value=0)
     out["calls"] = out.sum(axis=1)
     out.loc["ALL"] = out.sum(axis=0)
-    for col in ("empty", "unparseable", "provider_error", "parsed"):
+    for col in ("empty", "unparseable", "tool_use_failed", "provider_error", "parsed"):
         if col not in out:
             out[col] = 0
     out["empty_rate"] = (out["empty"] / out["calls"]).round(4)
-    return out[["calls", "parsed", "empty", "unparseable", "provider_error", "empty_rate"]]
+    return out[["calls", "parsed", "empty", "unparseable", "tool_use_failed", "provider_error", "empty_rate"]]
 
 
 def pacing_summary(root: Path) -> dict:
@@ -279,3 +283,23 @@ def pacing_summary(root: Path) -> dict:
         by[r["checkpoint"]][1] += float(r["waited_s"])
     return {"waits": len(rows), "total_wait_s": round(sum(float(r["waited_s"]) for r in rows), 1),
             "by_checkpoint": {k: {"waits": v[0], "wait_s": round(v[1], 1)} for k, v in by.items()}}
+
+
+def selector_by_task(root: Path) -> pd.DataFrame:
+    """Selector calls per task (D-9): HTTP 400 tool_use_failed and empty-reply rates."""
+    rows = _read_jsonl(Path(root) / "v3_selector_log")
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    if "task_id" not in df:
+        df["task_id"] = None
+    df["task_id"] = df["task_id"].fillna("(unknown)")
+    g = df.groupby("task_id")["outcome"].value_counts().unstack(fill_value=0)
+    for col in ("parsed", "empty", "unparseable", "tool_use_failed", "provider_error"):
+        if col not in g:
+            g[col] = 0
+    g["calls"] = g[["parsed", "empty", "unparseable", "tool_use_failed", "provider_error"]].sum(axis=1)
+    g["tool_use_failed_rate"] = (g["tool_use_failed"] / g["calls"]).round(4)
+    g["empty_rate"] = (g["empty"] / g["calls"]).round(4)
+    return g[["calls", "parsed", "empty", "unparseable", "tool_use_failed", "provider_error",
+              "tool_use_failed_rate", "empty_rate"]]

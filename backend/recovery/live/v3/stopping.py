@@ -8,7 +8,9 @@ is parsed, and nothing else is ever accessed (acceptance test A10 checks the
 source statically and at run time).
 
 Included = injected fault origin, not an instrument fault, session not
-quarantined (pre-reg §3.3).
+quarantined (pre-reg §3.3); in tool_outage blocks only failures that opened
+their outage, outage index k = 1 (D-8). ``outage_k`` is design state, not an
+outcome.
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ S_MAX = 60   # configuration choice (pre-reg §2)
 
 ALLOWED_TOP = ("strategy", "definition_version", "v3")
 ALLOWED_V3 = ("session_seed", "block_index", "block_label", "injection_mode", "outage_N", "fault_origin",
-              "instrument_fault")
+              "instrument_fault", "outage_k")
 _BLOCKS = ("T", "S", "O2", "O5", "O20", "D")
 _STRATEGIES = ("retry", "switch_tool", "verify", "re_ground", "replan", "clarify")
 
@@ -39,7 +41,7 @@ def project(record: Mapping) -> dict:
     v3 = record["v3"]
     out = {"strategy": record["strategy"], "definition_version": record["definition_version"]}
     for k in ALLOWED_V3:
-        out[k] = v3[k]
+        out[k] = v3.get(k)      # outage_k: design state (D-8); absent on pre-D-8 records
     return out
 
 
@@ -47,7 +49,8 @@ def count_cells(projected: Iterable[dict], quarantined: set) -> Counter:
     c: Counter = Counter()
     for r in projected:
         if (r["definition_version"] == "v3" and r["fault_origin"] == "injected" and not r["instrument_fault"]
-                and int(r["session_seed"]) not in quarantined):
+                and int(r["session_seed"]) not in quarantined
+                and (r["injection_mode"] != "tool_outage" or r["outage_k"] == 1)):   # D-8: O* cells count k = 1
             c[(r["block_label"], r["strategy"])] += 1
     return c
 

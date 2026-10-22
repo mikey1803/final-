@@ -77,6 +77,12 @@ def main() -> int:
     print("\n== v3 selector calls (D-2) ==")
     ss = report.selector_summary(args.store)
     print(ss.to_string() if not ss.empty else "(no selector log)")
+    print("\n== v3 selector calls per task (D-9: tool_use_failed rate) ==")
+    st_ = report.selector_by_task(args.store)
+    print(st_.to_string() if not st_.empty else "(no selector log)")
+    print("\n== O* failures by outage index k (D-8; primary cells use k = 1) ==")
+    o = df[(df["mode"] == "tool_outage") & (df["fault_origin"] == "injected")] if "outage_k" in df else df.iloc[0:0]
+    print(o.groupby(["block_label", "outage_k"]).size().to_string() if len(o) else "(none)")
     print("\n== pacing (D-6) ==")
     print(json.dumps(report.pacing_summary(args.store), indent=1))
     st = stopping_status(args.store)

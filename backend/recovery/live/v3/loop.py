@@ -11,8 +11,11 @@ by the oracle (``detected_by="oracle"``) -- is a captured failure:
    stored as its own row;
 3. **halt H1**: on an ``injected`` failure outside ``transient``, a resend
    success (``corrected`` in degraded_output) is impossible by construction,
-   so collection stops (``HaltH1``). A ``natural`` failure is exempt: it is
-   tagged ``h1_exempt_natural`` and the run continues (pre-reg §2);
+   so collection stops (``HaltH1``). Exempt, tagged, and the run continues:
+   a ``natural`` failure (``h1_exempt_natural``, pre-reg §2), and an outage's
+   LAST call, N - k = 0, which ends the outage so the read-only resend is
+   correctly served (``h1_exempt_outage_end``, D-8). Every O* failure records
+   ``outage_k`` and ``outage_remaining`` (design state, not outcomes);
 4. one drawn strategy runs (``InlineRecoveryV3``);
 5. ``continue_after_recovery`` (v3 §7, default True): if the strategy's
    primary outcome holds (``corrected`` in degraded_output, else success) the
@@ -169,7 +172,7 @@ def run_episode_v3(task: Task, *, wrapper: FlakyWrapperV3, events: EventStore, r
     def _ctx(step_index: int, actor: str) -> None:
         if hasattr(select, "context"):
             select.context = {"episode_id": episode_id, "step_index": step_index, "block_label": block.label,
-                              "actor": actor, "session_seed": session["session_seed"]}
+                              "actor": actor, "session_seed": session["session_seed"], "task_id": task.task_id}
 
     for step_index, step_goal in enumerate(steps):
         history.append({"role": "user", "content": step_goal})
@@ -210,13 +213,18 @@ def run_episode_v3(task: Task, *, wrapper: FlakyWrapperV3, events: EventStore, r
                 origin, detected_by = ("injected" if meta["injected"] else "natural"), None
                 raw_error = result.error_text or ""
             call_id = meta["call_id"]
+        # D-8: outage index k and remaining calls N - k at the moment of failure (design state)
+        outage_k = (meta.get("outage_call_index") if (block.mode == "tool_outage" and meta is not None
+                                                       and meta["injected"]) else None)
+        outage_remaining = None if outage_k is None else block.outage_N - outage_k
         v3_event = {
             "definition_version": DEFINITION_VERSION, "fault_origin": origin, "injection_mode": block.mode,
             "block_index": block.block_index, "block_label": block.label, "outage_N": block.outage_N,
             "injection_params": wrapper.params(), "agent_side_kind": sel.kind, "detected_by": detected_by,
             "episode_id": episode_id, "episode_index": episode_index, "failure_ordinal": ordinal,
             "call_id": call_id, "call_meta": meta, "session_seed": session["session_seed"],
-            "session_index": session["session_index"],
+            "session_index": session["session_index"], "outage_k": outage_k, "outage_remaining": outage_remaining,
+            "selection_detail": sel.detail,
         }
         event = FailureEvent(
             session_id=episode_id, task_id=task.task_id, step_index=step_index, tool_name=tool_name,
@@ -238,20 +246,23 @@ def run_episode_v3(task: Task, *, wrapper: FlakyWrapperV3, events: EventStore, r
         b = _resend_outcome(block.mode, resend)
         resend["outcome"] = b
         resend["h1_exempt_natural"] = bool(origin == "natural" and b and block.mode != "transient")
+        # D-8: the outage's last call (N - k = 0) ends it, so the read-only resend is correctly served
+        resend["h1_exempt_outage_end"] = bool(origin == "injected" and outage_remaining == 0 and b)
         dirs.write_json(dirs.resends, event.event_id, {
             "event_id": event.event_id, "episode_id": episode_id, "fault_origin": origin,
             "injection_mode": block.mode, "block_label": block.label, "block_index": block.block_index,
             "session_seed": session["session_seed"], "strategy_drawn": None, **resend})
-        if origin == "injected" and block.mode != "transient" and b:
+        if origin == "injected" and block.mode != "transient" and b and outage_remaining != 0:
             raise HaltH1(f"resend {'corrected' if degraded_block else 'success'} on an injected "
                          f"{block.label} failure (event {event.event_id}): impossible by construction")
 
         base = {k: v3_event[k] for k in ("definition_version", "fault_origin", "injection_mode", "block_index",
                                          "block_label", "outage_N", "agent_side_kind", "detected_by",
                                          "episode_id", "failure_ordinal", "call_id", "session_seed",
-                                         "session_index")}
+                                         "session_index", "outage_k", "outage_remaining")}
         base.update(tool=tool_name, continue_after_recovery=continue_after_recovery,
-                    prior_attempt_ids=[a.attempt_id for a in attempts], h1_exempt_natural=resend["h1_exempt_natural"])
+                    prior_attempt_ids=[a.attempt_id for a in attempts], h1_exempt_natural=resend["h1_exempt_natural"],
+                    h1_exempt_outage_end=resend["h1_exempt_outage_end"], agent_side_detail=sel.detail)
         failed_result = result
         if result is not None and meta["degraded"]:
             failed_result = replace(result, error_text=ORACLE_ERROR_TEXT)
