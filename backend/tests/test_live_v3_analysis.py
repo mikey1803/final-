@@ -36,7 +36,8 @@ class Store:
               "primary_outcome": bool(y), "resend_baseline": {"outcome": bool(b)}, "fresh": fresh,
               "detected": detected, "corrected": bool(y) if mode == "degraded_output" else None,
               "task_completed": False, "task_completed_applicable": True, "failure_ordinal": 1,
-              "h1_exempt_natural": False}
+              "h1_exempt_natural": False,
+              "outage_k": 1 if n else None, "outage_remaining": (n - 1) if n else None}  # D-8: k = 1 failures
         a = {"attempt_id": f"a{self.i:05d}", "event_id": eid, "strategy": strategy, "definition_version": "v3",
              "result": {"success": bool(y), "evidence": {"reason": reason or ("success" if y else "exhausted_attempts")}},
              "no_action_taken": False, "v3": v3}
@@ -180,3 +181,19 @@ def test_deterministic(known_store):
     a = analyse(known_store, n_resamples=500)
     b = analyse(known_store, n_resamples=500)
     assert json.dumps(a, sort_keys=True, default=str) == json.dumps(b, sort_keys=True, default=str)
+
+
+# ---------------------------------------------------------------- D-8: k = 1 primary, all-k secondary
+
+from tests.test_live_v3_d8_d9 import _o2_two_episodes  # noqa: E402
+
+
+def test_analysis_primary_uses_k1_and_secondary_reports_all(tmp_path):
+    _o2_two_episodes(tmp_path)
+    res = analyse(tmp_path, n_resamples=200)
+    cell = [c for c in res["cells"] if c["block"] == "O2" and c["strategy"] == "switch_tool"][0]
+    assert cell["n"] == 1 and res["n_included"] == 2 and res["n_included_primary"] == 1
+    sec = {(r["remaining_calls"], r["n"]) for r in res["outage_secondary_by_remaining"]}
+    assert sec == {(1, 1), (0, 1)}
+    assert all(r["verdict"].startswith("none") for r in res["outage_secondary_by_remaining"])
+    assert {(d["block_label"], d["outage_k"]) for d in res["outage_k_distribution"]} == {("O2", 1), ("O2", 2)}

@@ -30,10 +30,18 @@ pre-registration specifies, and nothing is tuned after seeing data:
 - Manipulation checks (§5), exclusions (§3.3), llm_error per cell with the
   5% flag (D-6), per-tool effective injection (T-A1), selector and pacing
   summaries (D-2, D-6).
+- **D-8 (tool_outage).** Every primary O2 / O5 / O20 analysis -- cells, strata,
+  P2, P3 -- uses only failures that opened their outage (outage index k = 1),
+  as the §4.2 predictions assume. A secondary table reports ALL O* failures
+  by remaining outage calls N - k (Δ_ITT, Δ_M with 95% intervals), with no
+  verdict. Resend successes on the outage's last call (N - k = 0) are
+  expected and are reported separately from the manipulation check.
 
 Seeds: ``SeedSequence(23001).spawn(36 + 1 + 6 + 1)`` -- one child per cell in
 the fixed cell order (grandchildren: ITT, M, fresh, not fresh), then P1, then
-P3 per block in block order, then detection. 10,000 resamples.
+P3 per block in block order, then detection. The D-8 secondary O* table uses
+``SeedSequence(23003)``, one child per (block, strategy, remaining) row in
+sorted order. 10,000 resamples.
 """
 
 from __future__ import annotations
@@ -203,7 +211,10 @@ def _detection(store: Path, inc: pd.DataFrame, calibration: Optional[dict], seq,
 def analyse(store: Path, calibration: Optional[dict] = None, n_resamples: int = 10_000) -> dict:
     store = Path(store)
     df = report.load_attempts_frame(store)
-    inc = included(df) if not df.empty else df
+    inc_all = included(df) if not df.empty else df
+    # D-8: primary O* analysis = failures with outage index k = 1
+    inc = (inc_all[(inc_all["mode"] != "tool_outage") | (inc_all["outage_k"] == 1)]
+           if not inc_all.empty else inc_all)
     root = np.random.SeedSequence(SEED)
     children = root.spawn(len(CELL_ORDER) + 1 + len(BLOCK_ORDER) + 1)
     cell_seeds = children[: len(CELL_ORDER)]
@@ -316,16 +327,40 @@ def analyse(store: Path, calibration: Optional[dict] = None, n_resamples: int = 
     else:
         mc["resend_T"] = {"n": 0}
 
+    # D-8 secondary: all O* failures, by remaining outage calls N - k (no verdict)
+    o_rows = []
+    o = inc_all[inc_all["mode"] == "tool_outage"] if not inc_all.empty else inc_all
+    if len(o):
+        o = o.assign(remaining=o["outage_remaining"])
+        keys = sorted({(b, s, int(r)) for b, s, r in zip(o["block_label"], o["strategy"], o["remaining"])
+                       if r == r and r is not None}, key=lambda t: (BLOCK_ORDER.index(t[0]), t[1], t[2]))
+        kids = np.random.SeedSequence(SEED + 2).spawn(max(len(keys), 1))
+        for (b, s, r), kid in zip(keys, kids):
+            c = o[(o["block_label"] == b) & (o["strategy"] == s) & (o["remaining"] == r)]
+            d = (c["y"].astype(float) - c["b"].astype(float)).to_numpy()
+            m = c["applicable"].to_numpy().astype(bool)
+            g1, g2 = kid.spawn(2)
+            o_rows.append({"block": b, "strategy": s, "remaining_calls": r, "n": len(c),
+                           "delta_itt": _r(d.mean()), "delta_itt_ci": _r(_ci(d, c["episode_id"].to_numpy(), g1,
+                                                                              n_resamples, LEVEL_CELL)),
+                           "n_m": int(m.sum()), "delta_m": _r(d[m].mean()) if m.any() else None,
+                           "delta_m_ci": _r(_ci(d[m], c["episode_id"].to_numpy()[m], g2, n_resamples, LEVEL_CELL))
+                           if m.any() else None, "verdict": "none (secondary, D-8)"})
+    k_dist = (o.groupby(["block_label", "outage_k"]).size().reset_index(name="n").to_dict("records")
+              if len(o) else [])
+
     le = report.llm_error_by_cell(df)
     ei = report.effective_injection_by_tool(store)
     sel = report.selector_summary(store)
     return {
-        "store": str(store), "n_attempts_total": int(len(df)), "n_included": int(len(inc)),
+        "store": str(store), "n_attempts_total": int(len(df)), "n_included": int(len(inc_all)),
         "by_origin": df["fault_origin"].value_counts().to_dict() if len(df) else {},
         "parameters": {"m": M, "n_min": N_MIN, "n_min_stratum": N_MIN_STRATUM, "level_cell": LEVEL_CELL,
                        "level_primary": round(LEVEL_PRIMARY, 6), "m_det": M_DET, "det_high": DET_HIGH,
                        "bootstrap_seed": SEED, "n_resamples": n_resamples},
         "cells": cells, "P1": p1, "P2": p2, "P3": p3,
+        "outage_secondary_by_remaining": o_rows, "outage_k_distribution": k_dist,
+        "n_included_primary": int(len(inc)),
         "detection": _detection(store, inc, calibration, det_seed, n_resamples),
         "manipulation_checks": mc,
         "exclusions": report.exclusion_counts(df).reset_index().to_dict("records") if len(df) else [],
@@ -334,13 +369,16 @@ def analyse(store: Path, calibration: Optional[dict] = None, n_resamples: int = 
         if not le.empty else [],
         "effective_injection_by_tool": ei.to_dict("records") if not ei.empty else [],
         "selector": sel.reset_index().to_dict("records") if not sel.empty else [],
+        "selector_by_task": (lambda t: t.reset_index().to_dict("records") if not t.empty else [])(
+            report.selector_by_task(store)),
         "pacing": report.pacing_summary(store),
     }
 
 
 def to_markdown(res: dict) -> str:
     L = [f"# v3 analysis — {res['store']}", "",
-         f"Attempts: {res['n_attempts_total']} (included: {res['n_included']}); by origin: {res['by_origin']}", "",
+         f"Attempts: {res['n_attempts_total']} (included: {res['n_included']}; primary, O* k = 1 only: "
+         f"{res['n_included_primary']}); by origin: {res['by_origin']}", "",
          "## Primary claims", "",
          f"- **P1** (pooled Δ_M, T, {res['P1']['level']:.2%}): n={res['P1']['pooled_n']}, Δ_M={res['P1']['delta_m']}, "
          f"CI={res['P1']['ci']} → **{res['P1']['verdict']}**",
