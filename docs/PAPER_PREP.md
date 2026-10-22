@@ -860,6 +860,11 @@ detection, root-cause, and remediation record:
     above are still the original `llama-3.1-8b-instant` ones. Mixing the
     two models under one "One-Shot LLM" label would misrepresent the
     baseline; the model choice must be settled before any regeneration.
+- **2026-10-22: a v1/v2 live-pilot threat to validity — injected timeouts often do not fire.**
+  `requests` applies the 0.2 s injected timeout per socket operation, so wikipedia and
+  jsonplaceholder calls succeeded 4/4 despite it. The effective injection rate varied by tool, and
+  peer symmetry is weakened. No record is mislabelled. Details and consequences:
+  `docs/live_pilot/v1_v2_threats_addendum.md` (T-A1).
 - **2026-10-21: the gpt-oss-20b stopgap is unusable, and `results/phase1/` is regenerated.**
   - **The stopgap gives no real answers.** The Layer 1 client calls `openai/gpt-oss-20b` with
     `max_tokens=20`. All 7 One-Shot calls returned **empty** replies, because the model's reasoning
