@@ -1,0 +1,1 @@
+{"object":{"dataseries":{"array":{"object":{"cloudcover":"number","lifted_index":"number","prec_amount":"number","prec_type":"string","rh2m":"string","temp2m":"number","timepoint":"number","weather":"string","wind10m":{"object":{"direction":"string","speed":"number"}}}}},"init":"string","product":"string"}}
