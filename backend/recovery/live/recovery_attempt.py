@@ -11,6 +11,11 @@ They must never be counted toward Phase 2 ``(type, strategy)`` cells.
 
 Stores written before Task 21 have no ``recoveries/`` directory and load
 exactly as before; ``FailureEvent`` itself is unchanged.
+
+v3 (``docs/live_pilot/strategy_definitions_v3.md``) attempts carry
+``definition_version="v3"`` and a ``v3`` dict (fault origin, mode, resend
+baseline, episode fields, ``corrected`` / ``detected``). ``v3`` is omitted from
+``to_dict()`` when None, so v1/v2 records serialise exactly as before.
 """
 
 from __future__ import annotations
@@ -50,13 +55,16 @@ class RecoveryAttempt:
     no_action_taken: bool = False
     context: str = "inline"
     schema_version: str = RECOVERY_SCHEMA_VERSION
+    v3: Optional[dict] = None
     attempt_id: str = field(init=False)
 
     def __post_init__(self) -> None:
         if self.strategy not in ALL_ARMS:
             raise ValueError(f"strategy must be one of {ALL_ARMS}, got {self.strategy!r}")
-        if self.definition_version not in ("v1", "v2"):
-            raise ValueError(f"definition_version must be 'v1' or 'v2', got {self.definition_version!r}")
+        if self.definition_version not in ("v1", "v2", "v3"):
+            raise ValueError(f"definition_version must be 'v1', 'v2' or 'v3', got {self.definition_version!r}")
+        if (self.definition_version == "v3") != (self.v3 is not None):
+            raise ValueError("a v3 attempt needs its v3 fields, and only v3 attempts may carry them")
         if not 0.0 < self.selection_propensity <= 1.0:
             raise ValueError(f"selection_propensity must be in (0, 1], got {self.selection_propensity!r}")
         self.attempt_id = self._compute_id()
@@ -67,7 +75,10 @@ class RecoveryAttempt:
         return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:24]
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        if d["v3"] is None:
+            del d["v3"]
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> "RecoveryAttempt":

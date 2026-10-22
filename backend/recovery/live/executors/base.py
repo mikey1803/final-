@@ -206,6 +206,7 @@ def guarded_tool_call(ctx: FailureContext, tracker: BudgetTracker, ev: Evidence,
         "tool": tool, "args": args, "http_status": result.http_status, "success": result.success,
         "injected": result.injected, "injected_kind": result.injected_kind,
         "error_text": _clip(result.error_text), "latency_ms": round(result.latency_ms, 1),
+        **({"v3": result.v3} if result.v3 is not None else {}),  # v3 calls only; v1/v2 records unchanged
     })
     if result.success and ev.answered_by is None:
         ev.answered_by = tool

@@ -107,6 +107,13 @@ class FailureEvent:
     schema_version: str = SCHEMA_VERSION
     source: str = "live"
 
+    # v3 only (docs/live_pilot/strategy_definitions_v3.md §2, §8): fault_origin,
+    # injection_mode, block_index, injection_params, agent_side_kind,
+    # detected_by, episode fields. Not an identity field (event_id unchanged),
+    # and omitted from to_dict() when None, so v1/v2 events serialise exactly
+    # as before.
+    v3: Optional[dict] = None
+
     event_id: str = field(init=False)
 
     def __post_init__(self) -> None:
@@ -171,6 +178,8 @@ class FailureEvent:
 
     def to_dict(self) -> dict:
         d = asdict(self)
+        if d["v3"] is None:
+            del d["v3"]
         return d
 
     @classmethod

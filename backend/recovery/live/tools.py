@@ -61,6 +61,11 @@ class ToolCallResult:
     # executors that must parse the whole response (VERIFY's v2 schema
     # check) read this. None when no response was received.
     full_text: Optional[str] = None
+    # v3 call metadata set only by ``recovery.live.v3.flaky.FlakyWrapperV3``
+    # (injection mode, key, outage index, degradation flags). Never holds a
+    # genuine value -- those live in the wrapper's injection log only. None
+    # for every v1/v2 call, so v1/v2 behaviour and records are unchanged.
+    v3: Optional[dict] = None
 
 
 _MAX_BODY_CHARS = 2000
