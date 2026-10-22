@@ -26,7 +26,7 @@ import json
 from dataclasses import dataclass, field, replace
 from typing import Any, Callable, Optional
 
-from recovery.live.executors import ClarifyExecutor, ReGroundExecutor, SwitchToolExecutor, VerifyExecutor
+from recovery.live.executors import ClarifyExecutor, ReGroundExecutor, SwitchToolExecutor
 from recovery.live.executors.base import (
     Budget, BudgetTracker, Evidence, FailureContext, LLMError, RecoveryResult, _clip, finish, guarded_llm_call,
 )
@@ -198,7 +198,7 @@ class SelVerify:
 
     def config(self) -> dict:
         return {"on": "selection_failure", "judge_max_tokens": self.judge_max_tokens,
-                "then": "v2 schema check + LLM judge on the re-selected call's result"}
+                "then": "v2 schema check + LLM judge (v3 judge input, D-4) on the re-selected call's result"}
 
     def execute(self, ctx: SelectionFailureContext, budget: Budget) -> RecoveryResult:
         tracker, ev = BudgetTracker(budget, ctx.clock), Evidence()
@@ -231,7 +231,8 @@ class SelVerify:
                 ev.reason = "unparseable_llm_output"
                 return finish(tracker, ev, False)
             result = _issue(ctx, ev, sel.tool, sel.args)
-            checker = VerifyExecutor()
+            from recovery.live.v3.verify_v3 import VerifyExecutorV3
+            checker = VerifyExecutorV3()
             verdict2 = checker._run_checks(replace(ctx, tool_name=sel.tool, tool_args=sel.args), tracker, ev,
                                            result, "reissue", log)
             ev.reason = {"pass": "success", "reject": "checks_rejected", "budget": "budget_exhausted",

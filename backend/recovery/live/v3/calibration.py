@@ -16,7 +16,8 @@ first put in a fixed order (session seed, block, call id) so the draw is
 reproducible. Fewer than 50 eligible: all are used and n is reported.
 
 Settings are those used in collection and are all recorded: requested model
-id, reasoning effort, temperature, judge max tokens, the judge prompt
+id, reasoning effort, temperature, judge max tokens, the judge input (the v3
+answer-field-first input of D-4, as in collection), the judge prompt
 template's sha256, and the provider-reported model id per item.
 """
 
@@ -31,10 +32,12 @@ from typing import Optional
 import numpy as np
 
 from recovery.live.executors.base import LLMError
-from recovery.live.executors.prompts import judge_prompt, parse_judgement
+from recovery.live.executors.prompts import parse_judgement
 from recovery.live.executors.schemas import check_output_schema
 from recovery.live.executors.verify import VerifyExecutor
 from recovery.live.tools import ToolCallResult
+from recovery.live.v3 import verify_v3
+from recovery.live.v3.verify_v3 import JUDGE_INPUT, judge_prompt_v3
 
 __all__ = ["FA_SAMPLE_SEED", "FA_PER_FIELD", "FIELD_ORDER", "M_DET", "eligible_items", "draw_sample",
            "judge_settings", "judge_sample"]
@@ -84,12 +87,13 @@ def draw_sample(items: dict[str, list[dict]], per_field: int = FA_PER_FIELD) -> 
 
 
 def judge_settings(llm, judge_max_tokens: Optional[int] = None) -> dict:
-    template = inspect.getsource(judge_prompt)
+    template = "".join(inspect.getsource(f) for f in (verify_v3.answer_field_label, verify_v3.answer_field_text,
+                                                       judge_prompt_v3))
     return {
         "requested_model_id": getattr(llm, "model", None), "reasoning_effort": getattr(llm, "reasoning_effort", None),
         "temperature": 0.0, "judge_max_tokens": judge_max_tokens or VerifyExecutor().judge_max_tokens,
         "judge_prompt_template_sha256": hashlib.sha256(template.encode("utf-8")).hexdigest(),
-        "schema_check": True, "llm_judge": True, "judged_once": True,
+        "schema_check": True, "llm_judge": True, "judged_once": True, "judge_input": JUDGE_INPUT,
     }
 
 
@@ -109,7 +113,7 @@ def judge_sample(sample: dict[str, list[dict]], llm) -> dict:
                    "schema_passed": ok, "schema_detail": why, "judge": None, "model_id": None}
             if ok:
                 try:
-                    reply = llm.complete(judge_prompt(e.get("step_goal") or "", field, e.get("http_status"), text, None),
+                    reply = llm.complete(judge_prompt_v3(e.get("step_goal") or "", field, e.get("http_status"), text, None),
                                          max_tokens=settings["judge_max_tokens"], timeout_s=20.0)
                 except LLMError as exc:
                     rec["judge"] = {"llm_error": str(exc)[:300]}

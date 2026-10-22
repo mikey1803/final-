@@ -68,7 +68,8 @@ class FakeServices:
     def _make(self, tool: str) -> Callable:
         def fn(args, malformed, timeout):
             self.calls.append((tool, dict(args), malformed, timeout))
-            if timeout <= 0.2:
+            read_timeout = timeout[1] if isinstance(timeout, tuple) else timeout
+            if read_timeout <= 0.2:
                 return _timeout()
             if malformed and not self.accept_malformed:
                 return _err(404, '{"error": true}')

@@ -201,3 +201,81 @@ def detection_table(root: Path, df: pd.DataFrame) -> pd.DataFrame:
     v = v.assign(family=v["event_id"].map(fam))
     return (v.groupby(["tool", "family"]).agg(n=("detected", "size"), detected=("detected", "sum"),
                                               corrected=("corrected", "sum")).reset_index())
+
+
+# ---------------------------------------------------------------- operational diagnostics
+
+LLM_ERROR_FLAG_RATE = 0.05   # pre-reg D-6: cells with llm_error > 5% are flagged
+
+
+def llm_error_by_cell(df: pd.DataFrame) -> pd.DataFrame:
+    """llm_error rate per (block, strategy) over injected attempts BEFORE the
+    exclusion (quarantined sessions removed); flagged above 5% (D-6)."""
+    if df.empty:
+        return pd.DataFrame()
+    c = df[(df["fault_origin"] == "injected") & ~df["quarantined"]]
+    if c.empty:
+        return pd.DataFrame()
+    g = (c.assign(llm_error=c["reason"] == "llm_error").groupby(["block_label", "strategy"])
+         .agg(n_all=("llm_error", "size"), llm_error=("llm_error", "sum")).reset_index())
+    g["llm_error_rate"] = (g["llm_error"] / g["n_all"]).round(4)
+    g["flag_over_5pct"] = g["llm_error_rate"] > LLM_ERROR_FLAG_RATE
+    return g
+
+
+def effective_injection_by_tool(root: Path) -> pd.DataFrame:
+    """Per block x tool, over fresh draws on agent/strategy calls: draws, nominal
+    injections, and injections that actually took effect (the call failed, or in
+    D was degraded). Makes the transient 0.2 s timeout leak visible (T-A1)."""
+    logs = load_injection_logs(root)
+    if logs.empty:
+        return pd.DataFrame()
+    q = quarantined_sessions(root)
+    f = logs[(logs["fresh_draw"] == True) & (logs["probe"] == False)  # noqa: E712
+             & ~logs["session_seed"].astype(int).isin(q)].copy()
+    if f.empty:
+        return pd.DataFrame()
+    f["nominal"] = f["draw_injected"].fillna(False).astype(bool)
+    took = (~f["success"].fillna(False).astype(bool)) | f["degraded"].fillna(False).astype(bool)
+    f["effective"] = f["nominal"] & took
+    g = (f.groupby(["block_label", "tool"]).agg(draws=("nominal", "size"), nominal_injected=("nominal", "sum"),
+                                               effective_injected=("effective", "sum")).reset_index())
+    g["nominal_rate"] = (g["nominal_injected"] / g["draws"]).round(3)
+    g["effective_rate"] = (g["effective_injected"] / g["draws"]).round(3)
+    return g
+
+
+def _read_jsonl(d: Path) -> list[dict]:
+    rows = []
+    if d.exists():
+        for p in sorted(d.glob("*.jsonl")):
+            rows += [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines() if l.strip()]
+    return rows
+
+
+def selector_summary(root: Path) -> pd.DataFrame:
+    """Every v3 selector call (D-2): empty-reply, unparseable and provider-error rates by actor."""
+    rows = _read_jsonl(Path(root) / "v3_selector_log")
+    if not rows:
+        return pd.DataFrame()
+    df = pd.DataFrame(rows)
+    df["actor"] = df.get("actor", pd.Series(["agent"] * len(df))).fillna("agent")
+    out = df.groupby("actor")["outcome"].value_counts().unstack(fill_value=0)
+    out["calls"] = out.sum(axis=1)
+    out.loc["ALL"] = out.sum(axis=0)
+    for col in ("empty", "unparseable", "provider_error", "parsed"):
+        if col not in out:
+            out[col] = 0
+    out["empty_rate"] = (out["empty"] / out["calls"]).round(4)
+    return out[["calls", "parsed", "empty", "unparseable", "provider_error", "empty_rate"]]
+
+
+def pacing_summary(root: Path) -> dict:
+    rows = _read_jsonl(Path(root) / "v3_pacing")
+    by = {}
+    for r in rows:
+        by.setdefault(r["checkpoint"], [0, 0.0])
+        by[r["checkpoint"]][0] += 1
+        by[r["checkpoint"]][1] += float(r["waited_s"])
+    return {"waits": len(rows), "total_wait_s": round(sum(float(r["waited_s"]) for r in rows), 1),
+            "by_checkpoint": {k: {"waits": v[0], "wait_s": round(v[1], 1)} for k, v in by.items()}}

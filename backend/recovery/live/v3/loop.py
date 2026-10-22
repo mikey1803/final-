@@ -146,7 +146,7 @@ def _resend_outcome(mode: str, rec: dict) -> bool:
 def run_episode_v3(task: Task, *, wrapper: FlakyWrapperV3, events: EventStore, recoveries: RecoveryStore,
                    recovery: InlineRecoveryV3, select: Callable[[str], dict], block: BlockSpec,
                    session: dict, episode_index: int, tool_health: Optional[dict], dirs: V3Dirs,
-                   continue_after_recovery: bool = True) -> dict:
+                   continue_after_recovery: bool = True, pacer=None) -> dict:
     episode_id = f"v3-s{session['session_seed']}-b{block.block_index}-e{episode_index:04d}"
     wrapper.start_episode(episode_id)
     steps = task.steps or [task.goal]
@@ -157,10 +157,25 @@ def run_episode_v3(task: Task, *, wrapper: FlakyWrapperV3, events: EventStore, r
     finished_all = False
     aborted: Optional[str] = None
     degraded_block = block.mode == "degraded_output"
+    pacing_waits = 0.0
+
+    def _pace(kind: str, step_index: int) -> float:
+        # D-6: waits only here, never inside a strategy's budget clock
+        if pacer is None:
+            return 0.0
+        pacer.context = {"episode_id": episode_id, "step_index": step_index, "block_label": block.label}
+        return pacer.before(kind)
+
+    def _ctx(step_index: int, actor: str) -> None:
+        if hasattr(select, "context"):
+            select.context = {"episode_id": episode_id, "step_index": step_index, "block_label": block.label,
+                              "actor": actor, "session_seed": session["session_seed"]}
 
     for step_index, step_goal in enumerate(steps):
         history.append({"role": "user", "content": step_goal})
         wrapper.set_context(step_index=step_index, step_goal=step_goal, actor="agent")
+        pacing_waits += _pace("selection", step_index)
+        _ctx(step_index, "agent")
         try:
             sel = validate_selection(select, step_goal)
         except SelectionProviderError as exc:
@@ -215,6 +230,9 @@ def run_episode_v3(task: Task, *, wrapper: FlakyWrapperV3, events: EventStore, r
         )
         events.write(event)
 
+        if not sel.usable:
+            pacing_waits += _pace("resend_selection", step_index)
+            _ctx(step_index, "resend_probe")
         resend = _resend(wrapper, select, step_goal, None if not sel.usable else tool_name,
                          None if not sel.usable else tool_args, call_id)
         b = _resend_outcome(block.mode, resend)
@@ -238,6 +256,10 @@ def run_episode_v3(task: Task, *, wrapper: FlakyWrapperV3, events: EventStore, r
         if result is not None and meta["degraded"]:
             failed_result = replace(result, error_text=ORACLE_ERROR_TEXT)
         wrapper.set_context(actor="strategy")
+        wait = _pace("strategy", step_index)
+        pacing_waits += wait
+        base["pacing_wait_before_strategy_s"] = round(wait, 3)
+        _ctx(step_index, "strategy")
         attempt = recovery.recover(event=event, task=task, step_goal=step_goal, history=history, wrapper=wrapper,
                                    failed_result=failed_result, select=select,
                                    bad_selection=None if sel.usable else sel, resend_baseline=resend, v3_base=base)
@@ -280,7 +302,7 @@ def run_episode_v3(task: Task, *, wrapper: FlakyWrapperV3, events: EventStore, r
         "n_steps": len(steps), "finished_all_steps": finished_all, "task_completed": completed,
         "task_completed_applicable": applicable, "aborted": aborted, "failures": failures,
         "attempt_ids": [a.attempt_id for a in attempts], "last_answer_call_id": None if last is None else last.call_id,
-        "continue_after_recovery": continue_after_recovery,
+        "continue_after_recovery": continue_after_recovery, "pacing_wait_s": round(pacing_waits, 3),
     }
     dirs.write_json(dirs.episodes, episode_id, record)
     return record

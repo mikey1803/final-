@@ -48,6 +48,12 @@ class VerifyExecutor:
         return {"schema_check": self.schema_check, "llm_judge": self.llm_judge,
                 "judge_max_tokens": self.judge_max_tokens}
 
+    def _judge_prompt(self, ctx, result: ToolCallResult) -> str:
+        """v2 judge input: the first 500 characters of the body (``prompts.judge_prompt``).
+        Overridden by the v3 executor (v3 pre-registration D-4)."""
+        body = result.full_text if result.full_text is not None else result.body
+        return judge_prompt(ctx.step_goal, ctx.tool_name, result.http_status, body, result.error_text)
+
     def _run_checks(self, ctx, tracker, ev, result: ToolCallResult, stage: str, log: list) -> str:
         """'pass' | 'reject' | 'budget' | 'unparseable'. LLMError propagates."""
         if self.schema_check:
@@ -56,8 +62,7 @@ class VerifyExecutor:
             if not ok:
                 return "reject"
         if self.llm_judge:
-            body = result.full_text if result.full_text is not None else result.body
-            prompt = judge_prompt(ctx.step_goal, ctx.tool_name, result.http_status, body, result.error_text)
+            prompt = self._judge_prompt(ctx, result)
             reply = guarded_llm_call(ctx, tracker, ev, "verify_judge", prompt, self.judge_max_tokens)
             if reply is None:
                 return "budget"

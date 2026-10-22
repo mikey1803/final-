@@ -16,11 +16,14 @@ declared on every record (``synthetic_content``).
 
 **Timeouts.** ``transient`` keeps v1's 0.2 s client timeout unchanged
 (v3 §3.1). Note that ``requests`` applies a timeout per socket operation, not
-per call, so a 0.2 s timeout does not always fire (found 2026-10-22). Outage
-calls must fail, so ``tool_outage`` uses a 1 ms client timeout
-(``OUTAGE_TIMEOUT_S``): still a genuine client-side timeout, and it failed
-30/30 across all six tools when measured 2026-10-22. If one ever succeeds
-anyway, the genuine success is returned and flagged ``outage_leak``.
+per call, so a 0.2 s timeout does not always fire (found 2026-10-22; v1/v2
+threats addendum T-A1). Outage calls must fail, so ``tool_outage`` connects
+with the normal 10 s timeout and gives the read 1 ms (``OUTAGE_TIMEOUT_S``,
+v3 pre-registration D-5): a genuine ``requests`` ``ReadTimeout`` (``Read timed
+out. (read timeout=0.001)``), the same exception type a real slow-server
+timeout raises. It failed 30/30 across all six tools on 2026-10-22. If one
+ever succeeds anyway, the genuine success is returned and flagged
+``outage_leak``.
 
 **Genuine values** (v3 §3.6) are captured only in ``degraded_output`` blocks,
 on every successful call to an answer-bearing tool, and stored only in
@@ -53,7 +56,8 @@ __all__ = [
 MODES = ("transient", "sticky_args", "tool_outage", "degraded_output")
 OUTAGE_LEVELS = (2, 5, 20)               # configuration choices (v3 §3.3)
 TRANSIENT_TIMEOUT_S = INJECTED_TIMEOUT_S  # 0.2 s, unchanged from v1
-OUTAGE_TIMEOUT_S = 0.001
+# D-5: connect normally, give the read 1 ms -> a genuine requests ReadTimeout.
+OUTAGE_TIMEOUT_S = (DEFAULT_TIMEOUT_S, 0.001)
 _LOG_ERROR_CLIP = 500
 
 

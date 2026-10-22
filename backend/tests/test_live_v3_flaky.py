@@ -100,7 +100,7 @@ def test_sticky_same_key_same_corruption_new_key_fresh_draw_no_timeouts():
     again = w.call("countriesnow", {"country": "india "})
     assert first.v3["injected"] and first.v3["injected_kind"] == "malformed_request" and not first.success
     assert again.v3["sticky_hit"] and not again.v3["fresh_draw"] and not again.success
-    assert all(t > 0.2 for (_, _, _, t) in svc.calls)          # never a timeout
+    assert all(t == 10.0 for (_, _, _, t) in svc.calls)        # never a timeout
     w2, _ = wrapper("sticky_args", rate=0.0)
     w2.start_episode("e")
     assert w2.call("countriesnow", {"country": "India"}).success

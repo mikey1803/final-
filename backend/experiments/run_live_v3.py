@@ -9,11 +9,19 @@ block 5 (configuration choices, pre-reg §2). Session ``s`` uses
 never data.
 
     python experiments/run_live_v3.py --store results/live_pilot_v3 --session-index 1
-    python experiments/run_live_v3.py --smoke --store <dir>_smoke     # s = 0, ONE pass per block
+    python experiments/run_live_v3.py --smoke --store <dir>_smoke     # s = 0, adaptive smoke passes
+
+Agent selection uses the v3 Layer-2 selector (pre-reg D-2); every LLM call
+shares one client whose rate-limit headers drive the pacer (D-6), which
+waits only at checkpoints outside every strategy's budget clock.
+--smoke runs each block until it has at least --smoke-min-injected injected
+failures (default 3) or --smoke-max-passes passes (default 6): smoke only,
+never data.
 
 Writes into ``--store``: events/, recoveries/ (v3 RecoveryAttempts),
 v3_resends/, v3_episodes/, v3_injection_logs/ (genuine values -- instrument
-only, never shown to the agent), v3_sessions/<seed>.json, and on halt H1
+only, never shown to the agent), v3_selector_log/ and v3_pacing/ (every
+selector call and every pacing wait), v3_sessions/<seed>.json, and on halt H1
 v3_quarantine/<seed>.json (exit code 3).
 """
 
@@ -36,6 +44,8 @@ from recovery.live.v3 import DEFINITIONS_COMMIT, PREREGISTRATION_COMMIT  # noqa:
 from recovery.live.v3.flaky import FlakyWrapperV3  # noqa: E402
 from recovery.live.v3.libraries import frozen_libraries  # noqa: E402
 from recovery.live.v3.loop import BLOCK_TYPES, BlockSpec, HaltH1, V3Dirs, run_episode_v3  # noqa: E402
+from recovery.live.v3.pacing import RESERVE_REQUESTS, RESERVE_TOKENS, Pacer  # noqa: E402
+from recovery.live.v3.selector import V3Selector  # noqa: E402
 from recovery.live.v3.recovery import InlineRecoveryV3  # noqa: E402
 from recovery.live.v3.seeds import session_seed_for, stream_rng  # noqa: E402
 
@@ -50,6 +60,14 @@ def _now() -> str:
 def _git(*args: str) -> str:
     r = subprocess.run(["git", *args], cwd=str(_BACKEND_DIR), capture_output=True, text=True)
     return r.stdout.strip()
+
+
+def _append_jsonl(path: Path, rows: list, extra: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as fh:
+        for r in rows:
+            fh.write(json.dumps({**r, **extra}, default=str, ensure_ascii=False) + "\n")
+    rows.clear()
 
 
 def block_plan(session_seed: int, smoke: bool) -> tuple[list[BlockSpec], dict]:
@@ -74,7 +92,6 @@ def _write_log(dirs: V3Dirs, session_seed: int, block: BlockSpec, wrapper: Flaky
 
 def main() -> int:
     from experiments.run_live_collection import STARTER_TASKS
-    from recovery.live.agent_loop import _select_tool
     from recovery.live.executors.llm import GroqChatClient
 
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
@@ -82,6 +99,8 @@ def main() -> int:
     ap.add_argument("--session-index", type=int, default=None, help="s >= 1 for data; omitted with --smoke (s = 0)")
     ap.add_argument("--smoke", action="store_true", help="s = 0, one pass per block; store name must end in _smoke")
     ap.add_argument("--tasks", default=None, help="smoke only: comma-separated task_ids")
+    ap.add_argument("--smoke-min-injected", type=int, default=3)
+    ap.add_argument("--smoke-max-passes", type=int, default=6)
     args = ap.parse_args()
 
     if args.smoke:
@@ -117,6 +136,11 @@ def main() -> int:
         "block_order": [{"block_index": b.block_index, "label": b.label, "mode": b.mode, "outage_N": b.outage_N,
                          "passes": b.passes} for b in blocks],
         "block_order_seed": order_rec, "tasks": [t.task_id for t in tasks], "libraries": libs.hashes,
+        "deviations_applied": ["D-2 selector", "D-3 family split", "D-4 judge input", "D-5 read timeout",
+                               "D-6 pacing"],
+        "pacing_reserves": {"tokens": RESERVE_TOKENS, "requests": RESERVE_REQUESTS},
+        "smoke_rule": ({"min_injected": args.smoke_min_injected, "max_passes": args.smoke_max_passes}
+                       if args.smoke else None),
     }
     dirs.write_json(dirs.root / "v3_sessions", str(session_seed), manifest)
 
@@ -127,8 +151,15 @@ def main() -> int:
     manifest["tool_health"] = tool_health
 
     events, recoveries = EventStore(dirs.root), RecoveryStore(dirs.root)
-    recovery = InlineRecoveryV3(store=recoveries, session_seed=session_seed, llm=GroqChatClient())
+    client = GroqChatClient()                      # one client: its headers drive the pacer (D-6)
+    selector = V3Selector(client)                  # D-2
+    pacer = Pacer(client)
+    manifest["selector"] = selector.settings()
+    dirs.write_json(dirs.root / "v3_sessions", str(session_seed), manifest)
+    recovery = InlineRecoveryV3(store=recoveries, session_seed=session_seed, llm=client)
     session = {"session_seed": session_seed, "session_index": s}
+    sel_log = dirs.root / "v3_selector_log" / f"s{session_seed}.jsonl"
+    pace_log = dirs.root / "v3_pacing" / f"s{session_seed}.jsonl"
     print(f"v3 session s={s} seed={session_seed} code={head[:7]}{' (dirty)' if dirty else ''} "
           f"blocks={[b.label + 'x' + str(b.passes) for b in blocks]}")
     episode_index = 0
@@ -136,19 +167,33 @@ def main() -> int:
         for block in blocks:
             wrapper = FlakyWrapperV3(mode=block.mode, session_seed=session_seed, block_index=block.block_index,
                                      outage_N=block.outage_N, libraries=libs)
+            injected_in_block = 0
             try:
-                for p in range(block.passes):
+                p = 0
+                while True:
+                    if args.smoke:
+                        if injected_in_block >= args.smoke_min_injected or p >= args.smoke_max_passes:
+                            break
+                    elif p >= block.passes:
+                        break
                     for task in tasks:
                         rec = run_episode_v3(task, wrapper=wrapper, events=events, recoveries=recoveries,
-                                             recovery=recovery, select=_select_tool, block=block, session=session,
-                                             episode_index=episode_index, tool_health=tool_health, dirs=dirs)
+                                             recovery=recovery, select=selector, block=block, session=session,
+                                             episode_index=episode_index, tool_health=tool_health, dirs=dirs,
+                                             pacer=pacer)
                         episode_index += 1
+                        injected_in_block += sum(f["fault_origin"] == "injected" for f in rec["failures"])
                         tag = "OK" if rec["task_completed"] else ("aborted" if rec["aborted"] else "not completed")
                         fl = "; ".join(f"{f['fault_origin']}->{f['strategy']}:{'Y' if f['primary_outcome'] else 'N'}"
                                        for f in rec["failures"])
-                        print(f"[{block.label:3s} pass {p}] {task.task_id:22s} {tag:13s} {fl}")
+                        print(f"[{block.label:3s} pass {p}] {task.task_id:22s} {tag:13s} {fl}", flush=True)
+                    p += 1
             finally:
                 _write_log(dirs, session_seed, block, wrapper)
+                _append_jsonl(sel_log, selector.log, {"block_index": block.block_index, "block_label": block.label})
+                _append_jsonl(pace_log, pacer.log, {"block_index": block.block_index})
+                if args.smoke:
+                    manifest.setdefault("smoke_passes", {})[block.label] = p
     except HaltH1 as exc:
         manifest.update(status="halted_H1", finished_at=_now(), halt=str(exc))
         dirs.write_json(dirs.root / "v3_quarantine", str(session_seed),

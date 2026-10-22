@@ -3,7 +3,8 @@ the instrument-side outcomes the v3 analysis needs (v3 §3.4, §4, §6, §7;
 pre-registration §3-§4).
 
 Arms: the six v2-configured strategies (retry v2, replan, switch_tool,
-re_ground v2, verify v2, clarify), uniform, propensity 1/6. Retry v1 is not
+re_ground v2, verify v2 with the v3 judge input of D-4, clarify), uniform,
+propensity 1/6. Retry v1 is not
 drawn (v3 §4); NULL_CONTROL is not drawn (its ``wait_s`` is still
 [RESULT REQUIRED], v2). Randomness: the ``selection`` and ``jitter`` streams,
 keyed by the session-wide ``failure_index`` (``recovery.live.v3.seeds``).
@@ -46,6 +47,7 @@ from recovery.live.v3 import DEFINITION_VERSION
 from recovery.live.v3.answers import compare, read_answer
 from recovery.live.v3.flaky import FlakyWrapperV3
 from recovery.live.v3.seeds import stream_seed
+from recovery.live.v3.verify_v3 import VerifyExecutorV3
 from recovery.live.v3.selection import (
     Selection, SelectionFailureContext, build_selection_executors, failed_selection_result,
 )
@@ -95,6 +97,7 @@ class InlineRecoveryV3:
 
     def __post_init__(self) -> None:
         self.executors = build_executors("v2")              # v2 configurations carry over (v3 preamble)
+        self.executors["verify"] = VerifyExecutorV3()          # judge input: answer field first (D-4)
         self.selection_executors = build_selection_executors()
         self.arms = list(self.executors)
         if "null_control" in self.arms or list(self.selection_executors) != self.arms:
