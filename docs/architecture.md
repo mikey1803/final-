@@ -249,3 +249,25 @@ module docstring and `docs/anomalies.md`'s "Automated Prevention" section
 for why this, and not a fixed epsilon, is the statistically correct
 model, and for the specific episode-count design decision the Table VII
 regression test required.
+
+### Runtime guardrails (Task 22): a separate sub-layer
+
+`recovery/guards/runtime.py` is not part of the invariant layer above. The invariant guards check a
+*completed* simulation against the analytic bounds. The runtime guards act *during* an agent run, for the
+`with_recovery` wrapper (`recovery/integrations/`):
+- `TaskBudget`: per-task caps on recovery attempts, tokens, wall time and strategy runs, using the live
+  `Budget` type.
+- `CircuitBreaker` / `BreakerBoard`: per-tool closed / open / half-open breakers.
+- `escalate` / `EscalationResult`: hand-off to a responder.
+- `exploit_choice` / `choose_arm`: side-effect tools never get an exploratory choice.
+
+Dependencies differ by file:
+- `invariants.py` keeps its numpy + `recovery.theory.analytic` rule unchanged.
+- `runtime.py` imports only `Budget` and `TOOL_CALL_RESERVE_MS` from `recovery.live.executors.base`, and
+  uses policies, classifiers and responders by duck typing.
+- Neither file imports the simulation kernel's environments.
+
+Nothing in the live pilot imports `recovery/guards`, `recovery/integrations` or `recovery/policies`. The
+wrapper reuses the live executors without modifying them: the six live tool names run the frozen v2
+executors, and other tools run Layer-2 generic variants in `recovery/integrations/executors.py`.
+

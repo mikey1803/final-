@@ -254,6 +254,82 @@ Copy-Item backend\.env.example backend\.env
 
 ---
 
+## Adding recovery to your own agent: `with_recovery` (Task 22)
+
+Wrap any tool, either a plain Python callable or a LangChain/LangGraph tool, in one line:
+
+```python
+from recovery.integrations import with_recovery
+
+weather = with_recovery(weather_tool)   # same name, same arguments, same output when nothing fails
+```
+
+When a call fails, the wrapped tool goes through these steps:
+1. It classifies the failure. Fixed rules cover timeouts, HTTP errors and connection errors; the trained classifier handles anything else.
+2. It picks a recovery strategy with the policy. The default is prior-guided Thompson sampling.
+3. It runs the matching executor.
+4. It logs a `RecoveryAttempt` and updates the policy.
+
+The tool then returns the recovered output. If it can't recover, it returns an `EscalationResult`; a LangChain tool returns that result's text. A call that succeeds is passed through untouched.
+
+Tools that should share circuit breakers, a per-task budget, a policy and a log go in one `RecoveryRuntime`:
+
+```python
+from recovery.integrations import RecoveryRuntime
+from recovery.guards.runtime import BreakerConfig
+from recovery.live.executors.base import Budget
+from recovery.live.executors.responders import CallbackResponder
+
+rt = RecoveryRuntime(budget=Budget(max_attempts=3, max_wall_ms=40_000, max_tokens=1_500),
+                     breaker=BreakerConfig(failure_threshold=3, cooldown_s=30),
+                     responder=CallbackResponder(lambda question, task: ask_a_human(question)),
+                     store="logs/with_recovery")              # omit to keep the log in memory
+wttr = rt.wrap(wttr_tool)                                     # backup + arg translation from the registry
+book = rt.wrap(book_tool, backup=book_mirror, side_effect=True)
+with rt.task("q1", goal="weather in Kolkata"):                # one budget for the whole task
+    graph.invoke({"messages": [...]})
+```
+
+The runtime guardrails live in `backend/recovery/guards/runtime.py`. The defaults below are configuration choices, not measured values.
+
+- **Budget:** hard caps per task on recovery attempts, tokens and wall time.
+  - A strategy starts only if a worst-case call (12 s) still fits.
+  - A tool that overruns its declared worst case is flagged and escalated; it is not killed.
+- **Circuit breaker:** one per tool.
+  - It opens after 3 consecutive failed calls.
+  - While open, calls go to the registry backup and the primary is not called.
+  - After the cooldown, it sends one probe to the primary. A successful probe closes the breaker; a failed one reopens it.
+- **Escalation:** when the classifier's confidence is below 0.5, or the budget is used up, the failure goes to the responder.
+  - The responder is your human callback.
+  - The result is always a structured `EscalationResult`; nothing is raised silently.
+- **Side-effect tools** (`side_effect=True`) never get an exploratory choice: they always get the policy's highest-mean strategy.
+
+**Coverage:**
+- The six live pilot tools use the frozen v2 executors unchanged.
+- Other tools use generic variants in `recovery/integrations/executors.py`.
+- Without an LLM client, only retry, switch_tool and a schema-only verify can run.
+
+Every logged attempt records how its strategy was chosen, in `executor_config.selection_mode`:
+- `"policy"`: the policy's own pick. For Thompson policies the propensity is estimated at decision time
+  from `propensity_draws` posterior draws (default 1000), seeded from the decision's own stream.
+- `"masked"`: the breaker or applicability rules forced the strategy. Propensity is 1.0, and the
+  masked-out strategies are listed. These attempts still update the policy; filter them out in analysis.
+- `"exploit_only"`: a side-effect tool, so the choice is deterministic. Propensity is 1.0.
+
+The wrapper's log is not experiment data. It refuses to write into live-pilot or v3 collection stores.
+
+The demo runs a scripted LangGraph agent with two live weather tools and a simulated 12-second outage on one of them:
+
+```bash
+python examples/langgraph_agent.py --outage wttr:12 --cooldown 4
+```
+
+`--llm groq` switches to a real Groq ReAct agent and gives the runtime a Groq client, so the LLM
+strategies can run. That path is covered by an offline test with mocked Groq responses, including an
+HTTP 429 that is recorded as `llm_error`: `backend/tests/test_langgraph_example_groq.py`.
+
+---
+
 ## Running Tests
 
 Run the full test suite from inside `backend/`:
@@ -347,7 +423,8 @@ demo never touches the real evaluation results.
 failure-aware-agent/
 |-- backend/
 |   |-- src/                  # original prototype: agent/, evaluation/, failures/, memory/, recovery/
-|   |-- recovery/             # additive deterministic kernel: theory/, core/, guards/, envs/, classify/, policies/, analysis/
+|   |-- recovery/             # additive deterministic kernel: theory/, core/, guards/, envs/, classify/, policies/, analysis/;
+|   |                         #   live/ (live pilot), integrations/ (with_recovery wrapper)
 |   |-- experiments/          # 24 scripts: stationary_comparison, matrix_family_sweep, classifier_noise_sweep,
 |   |                         #   drift_*, horizon_*, crossover_*, prior_*, matrix_robustness, llm_designers,
 |   |                         #   prompt_robustness, hypothesis_registry, study_analysis, runtime_benchmark,
@@ -365,6 +442,7 @@ failure-aware-agent/
 |-- frontend/
 |   |-- dashboard/            # original Streamlit dashboard (fallback)
 |   `-- dashboard-react/      # React + Vite dashboard, live simulation tab
+|-- examples/                 # langgraph_agent.py: with_recovery on a minimal LangGraph agent (Task 22)
 |-- study/                    # blind-design elicitation web instrument (Task 11)
 |-- docs/
 |   |-- PROJECT_EXPLAINED.md      # plain-language walkthrough of the original system
