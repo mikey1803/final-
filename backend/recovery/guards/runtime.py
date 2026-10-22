@@ -37,7 +37,8 @@ from recovery.live.executors.base import TOOL_CALL_RESERVE_MS, Budget
 __all__ = [
     "TaskBudget", "BreakerState", "BreakerConfig", "CircuitBreaker", "BreakerBoard",
     "EscalationResult", "escalate", "ESCALATION_REASONS", "DEFAULT_CONFIDENCE_THRESHOLD",
-    "MeanTable", "policy_means", "exploit_choice", "choose_arm",
+    "MeanTable", "policy_means", "exploit_choice", "choose_arm", "thompson_posterior", "thompson_propensity",
+    "DEFAULT_PROPENSITY_DRAWS",
 ]
 
 DEFAULT_CONFIDENCE_THRESHOLD = 0.5   # configuration choice
@@ -309,24 +310,84 @@ def exploit_choice(means: Sequence[float], allowed: Sequence[int]) -> int:
     return max(allowed, key=lambda a: (m[a], -a))
 
 
+DEFAULT_PROPENSITY_DRAWS = 1000   # configuration choice
+
+
+def thompson_posterior(policy: Any, t: int) -> Optional[tuple[np.ndarray, np.ndarray]]:
+    """The Beta posterior row ``(alpha, beta)`` a Thompson policy samples
+    from for type ``t``, or None for any other policy. Uses a
+    ``thompson_posterior(t)`` method when the policy has one, else reads
+    ``PriorInitializedThompson``'s ``_alpha`` / ``_beta`` arrays (copied,
+    read-only; the policy is not modified)."""
+    fn = getattr(policy, "thompson_posterior", None)
+    if callable(fn):
+        a, b = fn(t)
+        return np.asarray(a, dtype=float).copy(), np.asarray(b, dtype=float).copy()
+    a, b = getattr(policy, "_alpha", None), getattr(policy, "_beta", None)
+    if isinstance(a, np.ndarray) and isinstance(b, np.ndarray) and a.ndim == 2 and a.shape == b.shape:
+        return a[t].astype(float).copy(), b[t].astype(float).copy()
+    return None
+
+
+def thompson_propensity(alpha: np.ndarray, beta: np.ndarray, arm: int, allowed: Sequence[int],
+                        fallback_arm: int, draws: int, rng: np.random.Generator) -> float:
+    """Fraction of ``draws`` posterior samples for which the decision rule
+    -- argmax of a Thompson draw, with a draw landing on a masked arm
+    replaced by ``fallback_arm`` -- picks ``arm``. With nothing masked this
+    is the plain fraction of draws whose argmax is ``arm``."""
+    theta = rng.beta(alpha, beta, size=(int(draws), len(alpha)))
+    picks = theta.argmax(axis=1)
+    executed = np.where(np.isin(picks, np.asarray(list(allowed))), picks, fallback_arm)
+    return float((executed == arm).mean())
+
+
 def choose_arm(policy: Any, ctx: Any, rng: np.random.Generator, *, side_effect: bool,
-               allowed: Sequence[int], fallback: MeanTable) -> tuple[int, dict]:
+               allowed: Sequence[int], fallback: MeanTable,
+               propensity_rng: Optional[np.random.Generator] = None,
+               propensity_draws: int = DEFAULT_PROPENSITY_DRAWS) -> tuple[int, dict]:
     """The strategy for one failure, and how it was chosen.
 
-    side_effect=True: ``exploit_choice`` over the policy's means;
-    ``policy.select`` is never called. Otherwise ``policy.select``; a choice
-    outside ``allowed`` (an arm that cannot run here) is replaced by the
-    highest-mean allowed arm and recorded as ``masked_from``.
+    - ``side_effect=True``: ``exploit_choice`` over the policy's means;
+      ``policy.select`` is never called. ``selection_mode="exploit_only"``,
+      propensity 1.0 (deterministic).
+    - Otherwise ``policy.select``. If the pick is runnable,
+      ``selection_mode="policy"``; for a Thompson policy the propensity is
+      estimated at decision time from ``propensity_draws`` posterior draws on
+      ``propensity_rng`` (the decision's own seeded stream, separate from the
+      one ``select`` used); a policy exposing ``selection_propensity(ctx,
+      arm)`` reports its own; any other policy's is unknown.
+    - If the pick is not runnable (breaker / applicability rules), the
+      highest-mean runnable arm is forced: ``selection_mode="masked"``,
+      ``masked_from`` = the policy's pick, propensity 1.0 (the forced arm is
+      deterministic given that pick).
+
+    ``masked_out_arms`` always lists the arms that could not run.
     """
     means, source = policy_means(policy, ctx.predicted_type, fallback)
+    masked_out = sorted(set(range(len(means))) - set(allowed))
     if side_effect:
-        return exploit_choice(means, allowed), {"mode": "exploit_only", "means_source": source,
-                                                "propensity": 1.0, "propensity_known": True}
+        return exploit_choice(means, allowed), {
+            "selection_mode": "exploit_only", "means_source": source, "masked_out_arms": masked_out,
+            "propensity": 1.0, "propensity_known": True, "propensity_method": "deterministic"}
+    post = thompson_posterior(policy, ctx.predicted_type)      # decision-time posterior, before any update
     a = int(policy.select(ctx, rng))
-    if a in allowed:
-        prop_fn = getattr(policy, "selection_propensity", None)
-        p = prop_fn(ctx, a) if callable(prop_fn) else None
-        return a, {"mode": "policy", "propensity": p, "propensity_known": p is not None}
-    arm = exploit_choice(means, allowed)
-    return arm, {"mode": "masked", "masked_from": a, "means_source": source, "propensity": None,
-                 "propensity_known": False}
+    if a not in allowed:
+        return exploit_choice(means, allowed), {
+            "selection_mode": "masked", "masked_from": a, "masked_out_arms": masked_out, "means_source": source,
+            "propensity": 1.0, "propensity_known": True, "propensity_method": "forced_by_mask"}
+    info = {"selection_mode": "policy", "masked_out_arms": masked_out, "propensity": None,
+            "propensity_known": False, "propensity_method": None}
+    prop_fn = getattr(policy, "selection_propensity", None)
+    if callable(prop_fn):
+        p = prop_fn(ctx, a)
+        info.update(propensity=p, propensity_known=p is not None, propensity_method="policy.selection_propensity")
+    elif post is not None and propensity_rng is not None:
+        est = thompson_propensity(post[0], post[1], a, allowed, exploit_choice(means, allowed),
+                                  propensity_draws, propensity_rng)
+        info.update(propensity_method="monte_carlo_posterior", propensity_draws=int(propensity_draws),
+                    propensity_estimate=est)
+        if est > 0:
+            info.update(propensity=est, propensity_known=True)
+        else:   # no draw reproduced the pick: not a usable estimate (raise propensity_draws)
+            info["propensity_note"] = f"0 of {propensity_draws} draws picked the chosen arm"
+    return a, info

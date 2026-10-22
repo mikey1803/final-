@@ -114,6 +114,78 @@ def test_choose_arm_never_calls_select_for_side_effect_tools():
     mt.update(0, 2, True)
     spy = Spy()
     arm, info = choose_arm(spy, Ctx(), np.random.default_rng(0), side_effect=True, allowed=[0, 1, 2], fallback=mt)
-    assert (arm, spy.calls, info["mode"], info["propensity"]) == (2, 0, "exploit_only", 1.0)
+    assert (arm, spy.calls, info["selection_mode"], info["propensity"]) == (2, 0, "exploit_only", 1.0)
     arm, info = choose_arm(spy, Ctx(), np.random.default_rng(0), side_effect=False, allowed=[1, 2], fallback=mt)
-    assert spy.calls == 1 and info["mode"] == "masked" and info["masked_from"] == 0 and arm == 2
+    assert spy.calls == 1 and info["selection_mode"] == "masked" and info["masked_from"] == 0 and arm == 2
+    assert info["propensity"] == 1.0 and info["propensity_known"] and info["masked_out_arms"] == [0]
+
+
+# ---------------------------------------------------------------- Thompson propensity
+
+def _p_b_beats_a(a_a, b_a, a_b, b_b):
+    """Closed form P(theta_B > theta_A), theta ~ Beta, integer a_b (Evan Miller's formula)."""
+    from math import exp, lgamma
+
+    def lbeta(x, y):
+        return lgamma(x) + lgamma(y) - lgamma(x + y)
+
+    return sum(exp(lbeta(a_a + i, b_a + b_b) - lbeta(1 + i, b_b) - lbeta(a_a, b_a)) / (b_b + i)
+               for i in range(int(a_b)))
+
+
+def _two_arm_pgts():
+    from recovery.policies.hybrid import PriorInitializedThompson
+    pol = PriorInitializedThompson(np.array([0]), 2, strength=0.0, name="pgts-2")
+
+    class Ctx:
+        predicted_type = 0
+
+    for r in (1,) * 7 + (0,) * 3:                 # arm 0: Beta(8, 4)
+        pol.update(Ctx(), 0, r)
+    for r in (1,) * 4 + (0,) * 6:                 # arm 1: Beta(5, 7)
+        pol.update(Ctx(), 1, r)
+    return pol, Ctx()
+
+
+def test_thompson_propensity_matches_the_closed_form_on_two_arms():
+    from recovery.guards.runtime import thompson_posterior, thompson_propensity
+    pol, _ = _two_arm_pgts()
+    a, b = thompson_posterior(pol, 0)
+    assert a.tolist() == [8.0, 5.0] and b.tolist() == [4.0, 7.0]
+    p1 = _p_b_beats_a(8, 4, 5, 7)                 # P(arm 1 picked)
+    exact = {0: 1.0 - p1, 1: p1}
+    for arm in (0, 1):
+        est = thompson_propensity(a, b, arm, [0, 1], 0, 200_000, np.random.default_rng(arm))
+        assert abs(est - exact[arm]) < 0.005, (arm, est, exact[arm])
+
+
+def test_choose_arm_records_a_seeded_monte_carlo_propensity_within_tolerance():
+    pol, ctx = _two_arm_pgts()
+    p1 = _p_b_beats_a(8, 4, 5, 7)
+    exact = {0: 1.0 - p1, 1: p1}
+    seen = set()
+    for seed in range(40):
+        for m in (1000, 20_000):
+            arm, info = choose_arm(pol, ctx, np.random.default_rng(seed), side_effect=False, allowed=[0, 1],
+                                   fallback=MeanTable(1, 2), propensity_rng=np.random.default_rng(10_000 + seed),
+                                   propensity_draws=m)
+            p = exact[arm]
+            tol = 4 * np.sqrt(p * (1 - p) / m)
+            assert info["selection_mode"] == "policy" and info["propensity_method"] == "monte_carlo_posterior"
+            assert info["propensity_known"] and info["propensity_draws"] == m
+            assert abs(info["propensity"] - p) < tol, (seed, m, arm, info["propensity"], p)
+            seen.add(arm)
+        again = choose_arm(pol, ctx, np.random.default_rng(seed), side_effect=False, allowed=[0, 1],
+                           fallback=MeanTable(1, 2), propensity_rng=np.random.default_rng(10_000 + seed),
+                           propensity_draws=20_000)
+        assert again == (arm, info)              # same seeds -> same pick and same estimate
+    assert seen == {0, 1}
+
+
+def test_propensity_accounts_for_masking_when_the_pick_is_runnable():
+    from recovery.guards.runtime import thompson_propensity
+    a, b = np.array([8.0, 5.0, 1.0]), np.array([4.0, 7.0, 50.0])
+    # arm 2 masked, fallback arm 0: arm 0's propensity includes draws that landed on arm 2
+    plain = thompson_propensity(a, b, 0, [0, 1, 2], 0, 50_000, np.random.default_rng(1))
+    masked = thompson_propensity(a, b, 0, [0, 1], 0, 50_000, np.random.default_rng(1))
+    assert masked >= plain

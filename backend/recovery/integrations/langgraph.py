@@ -29,11 +29,21 @@ use ``recovery.integrations.executors`` (Layer 2).
 
 Not pilot data: attempts logged here come from a different selection process
 from any live-pilot collection and must never be pooled with it; the store
-refuses live-pilot / v3 collection paths. ``selection_propensity`` is exact
-only when ``executor_config.selection.propensity_known`` is true (exploit-only
-choices: 1.0; policies exposing ``selection_propensity``); otherwise the
-required field holds 1.0 and the attempt is not usable for off-policy
-estimation.
+refuses live-pilot / v3 collection paths.
+
+Selection is recorded on every attempt (``executor_config.selection_mode``
+and ``executor_config.selection``):
+- ``"policy"``: the policy's own pick. For a Thompson policy (the default)
+  the propensity is estimated at decision time from ``propensity_draws``
+  posterior draws (default 1000) on a stream seeded from the decision's own
+  seed, ``SeedSequence(runtime_seed, spawn_key=(failure_index, 1))``.
+- ``"masked"``: the breaker / applicability rules forced the arm; propensity
+  1.0, with ``masked_from`` and the masked-out arms. Masked attempts still
+  update the policy; analyses can filter them out by ``selection_mode``.
+- ``"exploit_only"``: side-effect tool; propensity 1.0.
+``selection.propensity_known`` is false only for a policy with no posterior
+and no ``selection_propensity`` (the required field then holds 1.0 and the
+attempt is not usable for off-policy estimation).
 
 Thread safety: calls through one runtime are serialised by a lock (LangGraph
 may run tool calls concurrently). LangChain tools are wrapped synchronously.
@@ -59,7 +69,7 @@ import numpy as np
 from recovery.core.protocols import Context
 from recovery.envs.canonical import BLIND_RULE, TYPE_NAMES
 from recovery.guards.runtime import (
-    DEFAULT_CONFIDENCE_THRESHOLD, BreakerBoard, BreakerConfig, BreakerState, EscalationResult, MeanTable,
+    DEFAULT_CONFIDENCE_THRESHOLD, DEFAULT_PROPENSITY_DRAWS, BreakerBoard, BreakerConfig, BreakerState, EscalationResult, MeanTable,
     TaskBudget, choose_arm, escalate,
 )
 from recovery.integrations.classify import CIRCUIT_OPEN_PREFIX, Classification, RuleThenTrainedClassifier
@@ -197,6 +207,7 @@ class RecoveryRuntime:
                  confidence_threshold: float = DEFAULT_CONFIDENCE_THRESHOLD,
                  breaker: BreakerConfig = BreakerConfig(), max_call_ms: float = TOOL_CALL_RESERVE_MS,
                  seed: int = 0, session_id: Optional[str] = None, escalation_timeout_s: float = 60.0,
+                 propensity_draws: int = DEFAULT_PROPENSITY_DRAWS,
                  clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep) -> None:
         self.policy = policy if policy is not None else default_policy()
         self.budget, self.responder, self.llm = budget, responder, llm
@@ -204,6 +215,7 @@ class RecoveryRuntime:
         self.confidence_threshold = float(confidence_threshold)
         self.max_call_ms = float(max_call_ms)
         self.seed, self.escalation_timeout_s = int(seed), float(escalation_timeout_s)
+        self.propensity_draws = int(propensity_draws)
         self.session_id = session_id or f"with_recovery-{self.seed}"
         self.clock, self.sleep = clock, sleep
         self.log = store if isinstance(store, RecoveryLog) else RecoveryLog(store)
@@ -462,9 +474,14 @@ class RecoveryRuntime:
             derived = int(seq.generate_state(1, dtype=np.uint64)[0])
             t = TYPE_NAMES.index(cls.failure_type)
             ctx = Context(predicted_type=t, tool_id=list(self.tools).index(entry.name), retry_count=k, episode=index)
+            prop_rng = np.random.default_rng(np.random.SeedSequence(self.seed, spawn_key=(index, 1)))
             arm_i, selection = choose_arm(self.policy, ctx, np.random.default_rng(derived),
                                           side_effect=entry.spec.side_effect, allowed=self._runnable_arms(tool),
-                                          fallback=self.means)
+                                          fallback=self.means, propensity_rng=prop_rng,
+                                          propensity_draws=self.propensity_draws)
+            selection["masked_out"] = [STRATEGY_NAMES[i] for i in selection["masked_out_arms"]]
+            if "masked_from" in selection:
+                selection["masked_from_strategy"] = STRATEGY_NAMES[selection["masked_from"]]
             arm = STRATEGY_NAMES[arm_i]
             executor = self._executor(tool, arm)
             event = FailureEvent(
@@ -503,11 +520,13 @@ class RecoveryRuntime:
                 definition_version="v2", selection_policy=getattr(self.policy, "name", type(self.policy).__name__),
                 selection_propensity=float(prop) if prop else 1.0,
                 seed={"runtime_seed": self.seed, "failure_index": index, "derived_seed": derived,
-                      "method": "numpy.SeedSequence(runtime_seed, spawn_key=(failure_index,))"},
+                      "method": "numpy.SeedSequence(runtime_seed, spawn_key=(failure_index,))",
+                      "propensity_stream": "numpy.SeedSequence(runtime_seed, spawn_key=(failure_index, 1))"},
                 model_id=next((c["model_id"] for c in ev.get("llm_calls", [])), None),
                 executor_config={"name": executor.name, **executor.config(),
                                  "executors": "live_v2" if self._is_live(tool) else "with_recovery_generic",
-                                 "selection": selection, "classification": {
+                                 "selection_mode": selection["selection_mode"], "selection": selection,
+                                 "classification": {
                                      "type": cls.failure_type, "confidence": cls.confidence, "source": cls.source},
                                  "wrapped_tool": entry.name, "side_effect": entry.spec.side_effect,
                                  "breakers": self.breakers.states()},

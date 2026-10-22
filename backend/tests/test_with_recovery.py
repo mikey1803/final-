@@ -124,10 +124,10 @@ def test_side_effect_tool_is_never_explored_over_10000_seeded_failures(monkeypat
     choices = []
     real = wr.choose_arm
 
-    def recording(policy, ctx, g, *, side_effect, allowed, fallback):
+    def recording(policy, ctx, g, *, side_effect, allowed, fallback, **kw):
         expected = exploit_choice(policy.posterior_mean()[ctx.predicted_type], allowed)
-        arm, info = real(policy, ctx, g, side_effect=side_effect, allowed=allowed, fallback=fallback)
-        choices.append((arm, expected, side_effect, info["mode"]))
+        arm, info = real(policy, ctx, g, side_effect=side_effect, allowed=allowed, fallback=fallback, **kw)
+        choices.append((arm, expected, side_effect, info["selection_mode"]))
         return arm, info
 
     monkeypatch.setattr(wr, "choose_arm", recording)
@@ -152,7 +152,7 @@ def test_side_effect_tool_is_never_explored_over_10000_seeded_failures(monkeypat
         i += 1
     assert spy.selects == 0 and spy.updates == len(choices)
     assert all(side and mode == "exploit_only" and arm == exp for arm, exp, side, mode in choices)
-    assert {a.executor_config["selection"]["mode"] for a in rt.log.attempts} == {"exploit_only"}
+    assert {a.executor_config["selection_mode"] for a in rt.log.attempts} == {"exploit_only"}
     assert all(a.selection_propensity == 1.0 for a in rt.log.attempts)
 
 
@@ -448,3 +448,32 @@ def test_classifier_rules_then_trained_fallback(tmp_path):
     assert c.source == "trained" and 0.0 < c.confidence <= 1.0 and abs(sum(c.proba.values()) - 1) < 1e-3   # proba stored rounded to 4 dp
     missing = RuleThenTrainedClassifier(model_path=tmp_path / "nope.joblib")
     assert missing.classify("odd output", "x") == Classification("unknown", 0.0, "none")
+
+
+# ---------------------------------------------------------------- selection records
+
+def test_attempts_record_selection_mode_and_propensity():
+    c, o = Clock(), Outage()
+    rt = _rt(c, propensity_draws=500)
+    api = rt.wrap(o.primary(), backup=o.backup())
+    # Without an LLM 4 of 6 arms cannot run, so many PGTS picks are masked; loop until both modes occur.
+    for _ in range(300):
+        api("x")
+        c.t += 3.0
+        if {a.executor_config["selection_mode"] for a in rt.log.attempts} == {"policy", "masked"}:
+            break
+    modes = {a.executor_config["selection_mode"] for a in rt.log.attempts}
+    assert modes == {"policy", "masked"}
+    for a in rt.log.attempts:
+        sel = a.executor_config["selection"]
+        assert sel["propensity_known"] and 0.0 < a.selection_propensity <= 1.0
+        assert a.selection_propensity == sel["propensity"]
+        if sel["selection_mode"] == "masked":
+            assert a.selection_propensity == 1.0 and sel["propensity_method"] == "forced_by_mask"
+            assert sel["masked_from_strategy"] in sel["masked_out"] and a.strategy not in sel["masked_out"]
+        else:
+            assert sel["propensity_method"] == "monte_carlo_posterior" and sel["propensity_draws"] == 500
+        assert a.seed["propensity_stream"].endswith("spawn_key=(failure_index, 1))")
+    # masked attempts still update the posterior: every attempt was an update
+    pol = rt.policy
+    assert (pol.posterior_mean() != default_policy().posterior_mean()).any()
