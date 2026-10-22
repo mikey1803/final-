@@ -1,0 +1,1025 @@
+{
+ "library": "dummyjson_todos_v3",
+ "source": "https://dummyjson.com/todos?limit=0",
+ "captured_at_utc": "2026-10-22T03:01:01.178741+00:00",
+ "n_items": 254,
+ "items_sha256": "09e4ed56f0e81718a437deb4d1be619246efd6592349cfcfc5510385caa93da6",
+ "items": [
+  {
+   "id": 1,
+   "text": "Do something nice for someone you care about"
+  },
+  {
+   "id": 2,
+   "text": "Memorize a poem"
+  },
+  {
+   "id": 3,
+   "text": "Watch a classic movie"
+  },
+  {
+   "id": 4,
+   "text": "Watch a documentary"
+  },
+  {
+   "id": 5,
+   "text": "Invest in cryptocurrency"
+  },
+  {
+   "id": 6,
+   "text": "Contribute code or a monetary donation to an open-source software project"
+  },
+  {
+   "id": 7,
+   "text": "Solve a Rubik's cube"
+  },
+  {
+   "id": 8,
+   "text": "Bake pastries for yourself and neighbor"
+  },
+  {
+   "id": 9,
+   "text": "Go see a Broadway production"
+  },
+  {
+   "id": 10,
+   "text": "Write a thank you letter to an influential person in your life"
+  },
+  {
+   "id": 11,
+   "text": "Invite some friends over for a game night"
+  },
+  {
+   "id": 12,
+   "text": "Have a football scrimmage with some friends"
+  },
+  {
+   "id": 13,
+   "text": "Text a friend you haven't talked to in a long time"
+  },
+  {
+   "id": 14,
+   "text": "Organize pantry"
+  },
+  {
+   "id": 15,
+   "text": "Buy a new house decoration"
+  },
+  {
+   "id": 16,
+   "text": "Plan a vacation you've always wanted to take"
+  },
+  {
+   "id": 17,
+   "text": "Clean out car"
+  },
+  {
+   "id": 18,
+   "text": "Draw and color a Mandala"
+  },
+  {
+   "id": 19,
+   "text": "Create a cookbook with favorite recipes"
+  },
+  {
+   "id": 20,
+   "text": "Bake a pie with some friends"
+  },
+  {
+   "id": 21,
+   "text": "Create a compost pile"
+  },
+  {
+   "id": 22,
+   "text": "Take a hike at a local park"
+  },
+  {
+   "id": 23,
+   "text": "Take a class at local community center that interests you"
+  },
+  {
+   "id": 24,
+   "text": "Research a topic interested in"
+  },
+  {
+   "id": 25,
+   "text": "Plan a trip to another country"
+  },
+  {
+   "id": 26,
+   "text": "Improve touch typing"
+  },
+  {
+   "id": 27,
+   "text": "Learn Express.js"
+  },
+  {
+   "id": 28,
+   "text": "Learn calligraphy"
+  },
+  {
+   "id": 29,
+   "text": "Have a photo session with some friends"
+  },
+  {
+   "id": 30,
+   "text": "Go to the gym"
+  },
+  {
+   "id": 31,
+   "text": "Make own LEGO creation"
+  },
+  {
+   "id": 32,
+   "text": "Take cat on a walk"
+  },
+  {
+   "id": 33,
+   "text": "Find a charity and donate to it"
+  },
+  {
+   "id": 34,
+   "text": "Donate to local food bank"
+  },
+  {
+   "id": 35,
+   "text": "Uninstall unused apps from devices"
+  },
+  {
+   "id": 36,
+   "text": "Write a handwritten letter to somebody"
+  },
+  {
+   "id": 37,
+   "text": "Fill out a basketball bracket"
+  },
+  {
+   "id": 38,
+   "text": "Do yoga"
+  },
+  {
+   "id": 39,
+   "text": "Make a scrapbook with pictures of favorite memories"
+  },
+  {
+   "id": 40,
+   "text": "Have a bonfire with close friends"
+  },
+  {
+   "id": 41,
+   "text": "Go for a run"
+  },
+  {
+   "id": 42,
+   "text": "Host a movie marathon with some friends"
+  },
+  {
+   "id": 43,
+   "text": "Go see a movie in theaters with a few friends"
+  },
+  {
+   "id": 44,
+   "text": "Wash car"
+  },
+  {
+   "id": 45,
+   "text": "Patronize a local independent restaurant"
+  },
+  {
+   "id": 46,
+   "text": "Watch a Khan Academy lecture on a subject of choosing"
+  },
+  {
+   "id": 47,
+   "text": "Learn Javascript"
+  },
+  {
+   "id": 48,
+   "text": "Volunteer at a local animal shelter"
+  },
+  {
+   "id": 49,
+   "text": "Volunteer at local food pantry"
+  },
+  {
+   "id": 50,
+   "text": "Start a book you've never gotten around to reading"
+  },
+  {
+   "id": 51,
+   "text": "Mow neighbor's lawn"
+  },
+  {
+   "id": 52,
+   "text": "Start a band"
+  },
+  {
+   "id": 53,
+   "text": "Organize music collection"
+  },
+  {
+   "id": 54,
+   "text": "Organize a cluttered drawer"
+  },
+  {
+   "id": 55,
+   "text": "Learn a new recipe"
+  },
+  {
+   "id": 56,
+   "text": "Start a daily journal"
+  },
+  {
+   "id": 57,
+   "text": "Clean out closet and donate the clothes you've outgrown"
+  },
+  {
+   "id": 58,
+   "text": "Go on a fishing trip with some friends"
+  },
+  {
+   "id": 59,
+   "text": "Learn Morse code"
+  },
+  {
+   "id": 60,
+   "text": "Listen to a new podcast"
+  },
+  {
+   "id": 61,
+   "text": "Color"
+  },
+  {
+   "id": 62,
+   "text": "Take dog on a walk"
+  },
+  {
+   "id": 63,
+   "text": "Start a blog for something I'm passionate about"
+  },
+  {
+   "id": 64,
+   "text": "Listen to a new music genre"
+  },
+  {
+   "id": 65,
+   "text": "Learn how to write in shorthand"
+  },
+  {
+   "id": 66,
+   "text": "Practice coding in favorite language"
+  },
+  {
+   "id": 67,
+   "text": "Read a formal research paper on an interesting subject"
+  },
+  {
+   "id": 68,
+   "text": "Learn how to whistle with fingers"
+  },
+  {
+   "id": 69,
+   "text": "Make a couch fort"
+  },
+  {
+   "id": 70,
+   "text": "Take a caffeine nap"
+  },
+  {
+   "id": 71,
+   "text": "Find a DIY to do"
+  },
+  {
+   "id": 72,
+   "text": "Go to a concert with some friends"
+  },
+  {
+   "id": 73,
+   "text": "Give pet ten minutes of focused attention"
+  },
+  {
+   "id": 74,
+   "text": "Rearrange and organize room"
+  },
+  {
+   "id": 75,
+   "text": "Learn how to play a new sport"
+  },
+  {
+   "id": 76,
+   "text": "Make homemade ice cream"
+  },
+  {
+   "id": 77,
+   "text": "Hold a yard sale"
+  },
+  {
+   "id": 78,
+   "text": "Learn to play a new instrument"
+  },
+  {
+   "id": 79,
+   "text": "Resolve a problem you've been putting off"
+  },
+  {
+   "id": 80,
+   "text": "Bake something you've never tried before"
+  },
+  {
+   "id": 81,
+   "text": "Organize dresser"
+  },
+  {
+   "id": 82,
+   "text": "Fix something that's broken in house"
+  },
+  {
+   "id": 83,
+   "text": "Play a video game"
+  },
+  {
+   "id": 84,
+   "text": "Listen to music you haven't heard in a while"
+  },
+  {
+   "id": 85,
+   "text": "Look at finances and find one way to save money"
+  },
+  {
+   "id": 86,
+   "text": "Learn the periodic table"
+  },
+  {
+   "id": 87,
+   "text": "Make a budget"
+  },
+  {
+   "id": 88,
+   "text": "Donate blood at a local blood center"
+  },
+  {
+   "id": 89,
+   "text": "Go to the library and find an interesting book"
+  },
+  {
+   "id": 90,
+   "text": "Configure two-factor authentication on accounts"
+  },
+  {
+   "id": 91,
+   "text": "Take a nap"
+  },
+  {
+   "id": 92,
+   "text": "Create or update resume"
+  },
+  {
+   "id": 93,
+   "text": "Prepare a 72-hour kit"
+  },
+  {
+   "id": 94,
+   "text": "Go on a long drive with no music"
+  },
+  {
+   "id": 95,
+   "text": "Learn the NATO phonetic alphabet"
+  },
+  {
+   "id": 96,
+   "text": "Have a jam session with friends"
+  },
+  {
+   "id": 97,
+   "text": "Hold a video game tournament with some friends"
+  },
+  {
+   "id": 98,
+   "text": "Catch up on world news"
+  },
+  {
+   "id": 99,
+   "text": "Do a jigsaw puzzle"
+  },
+  {
+   "id": 100,
+   "text": "Learn about the Golden Ratio"
+  },
+  {
+   "id": 101,
+   "text": "Organize basement"
+  },
+  {
+   "id": 102,
+   "text": "Learn a new programming language"
+  },
+  {
+   "id": 103,
+   "text": "Learn how the internet works"
+  },
+  {
+   "id": 104,
+   "text": "Organize a bookshelf"
+  },
+  {
+   "id": 105,
+   "text": "Go to a local thrift shop"
+  },
+  {
+   "id": 106,
+   "text": "Study a foreign language"
+  },
+  {
+   "id": 107,
+   "text": "Explore a park you have never been to before"
+  },
+  {
+   "id": 108,
+   "text": "Start a garden"
+  },
+  {
+   "id": 109,
+   "text": "Shred old documents you don't need anymore"
+  },
+  {
+   "id": 110,
+   "text": "Learn to write with nondominant hand"
+  },
+  {
+   "id": 111,
+   "text": "Go to a nail salon"
+  },
+  {
+   "id": 112,
+   "text": "Create a meal plan for the coming week"
+  },
+  {
+   "id": 113,
+   "text": "Surprise significant other with something considerate"
+  },
+  {
+   "id": 114,
+   "text": "Clean out garage"
+  },
+  {
+   "id": 115,
+   "text": "Make a simple musical instrument"
+  },
+  {
+   "id": 116,
+   "text": "Learn how to fold a paper crane"
+  },
+  {
+   "id": 117,
+   "text": "Learn the Chinese erhu"
+  },
+  {
+   "id": 118,
+   "text": "Start a family tree"
+  },
+  {
+   "id": 119,
+   "text": "Teach dog a new trick"
+  },
+  {
+   "id": 120,
+   "text": "Draw something interesting"
+  },
+  {
+   "id": 121,
+   "text": "Explore the nightlife of city"
+  },
+  {
+   "id": 122,
+   "text": "Make tie dye shirts"
+  },
+  {
+   "id": 123,
+   "text": "Think of a new business idea"
+  },
+  {
+   "id": 124,
+   "text": "Go swimming with a friend"
+  },
+  {
+   "id": 125,
+   "text": "Clean out refrigerator"
+  },
+  {
+   "id": 126,
+   "text": "Pot some plants and put them around house"
+  },
+  {
+   "id": 127,
+   "text": "Learn how to beatbox"
+  },
+  {
+   "id": 128,
+   "text": "Take a bubble bath"
+  },
+  {
+   "id": 129,
+   "text": "Prepare a dish from a foreign culture"
+  },
+  {
+   "id": 130,
+   "text": "Paint the first thing you see"
+  },
+  {
+   "id": 131,
+   "text": "Learn how to use a french press"
+  },
+  {
+   "id": 132,
+   "text": "Learn about a distributed version control system such as Git"
+  },
+  {
+   "id": 133,
+   "text": "Learn GraphQL"
+  },
+  {
+   "id": 134,
+   "text": "Learn origami"
+  },
+  {
+   "id": 135,
+   "text": "Go to a karaoke bar with some friends"
+  },
+  {
+   "id": 136,
+   "text": "Conquer one of fears"
+  },
+  {
+   "id": 137,
+   "text": "Shop at support local farmers market"
+  },
+  {
+   "id": 138,
+   "text": "Compliment someone"
+  },
+  {
+   "id": 139,
+   "text": "Do something you used to do as a kid"
+  },
+  {
+   "id": 140,
+   "text": "Match storage containers with their lids"
+  },
+  {
+   "id": 141,
+   "text": "Learn Kotlin"
+  },
+  {
+   "id": 142,
+   "text": "Write a short story"
+  },
+  {
+   "id": 143,
+   "text": "Visit a nearby museum"
+  },
+  {
+   "id": 144,
+   "text": "Make a new friend"
+  },
+  {
+   "id": 145,
+   "text": "Drink water"
+  },
+  {
+   "id": 146,
+   "text": "Charge the phone"
+  },
+  {
+   "id": 147,
+   "text": "Pay utility bills"
+  },
+  {
+   "id": 148,
+   "text": "Make a JavaScript library"
+  },
+  {
+   "id": 149,
+   "text": "Use DummyJSON"
+  },
+  {
+   "id": 150,
+   "text": "Hug Mom :)"
+  },
+  {
+   "id": 151,
+   "text": "Play cricket"
+  },
+  {
+   "id": 152,
+   "text": "Sleeeeep for the whole day!!!"
+  },
+  {
+   "id": 153,
+   "text": "Try new local restaurant"
+  },
+  {
+   "id": 154,
+   "text": "Write & mail postcard"
+  },
+  {
+   "id": 155,
+   "text": "Take scenic drive"
+  },
+  {
+   "id": 156,
+   "text": "Create vision board"
+  },
+  {
+   "id": 157,
+   "text": "Attend workshop"
+  },
+  {
+   "id": 158,
+   "text": "Start gratitude journal"
+  },
+  {
+   "id": 159,
+   "text": "Go stargazing"
+  },
+  {
+   "id": 160,
+   "text": "Try outdoor activity"
+  },
+  {
+   "id": 161,
+   "text": "Volunteer at garden"
+  },
+  {
+   "id": 162,
+   "text": "Attend live performance"
+  },
+  {
+   "id": 163,
+   "text": "Take cooking class"
+  },
+  {
+   "id": 164,
+   "text": "Spoken word at open mic"
+  },
+  {
+   "id": 165,
+   "text": "Day trip to new city"
+  },
+  {
+   "id": 166,
+   "text": "DIY home project"
+  },
+  {
+   "id": 167,
+   "text": "Network at event"
+  },
+  {
+   "id": 168,
+   "text": "Create self-care routine"
+  },
+  {
+   "id": 169,
+   "text": "Try new hobby/craft"
+  },
+  {
+   "id": 170,
+   "text": "Host themed dinner"
+  },
+  {
+   "id": 171,
+   "text": "Start mindfulness practice"
+  },
+  {
+   "id": 172,
+   "text": "Explore nature reserve"
+  },
+  {
+   "id": 173,
+   "text": "Create bucket list"
+  },
+  {
+   "id": 174,
+   "text": "Attend a lecture"
+  },
+  {
+   "id": 175,
+   "text": "Explore local art gallery"
+  },
+  {
+   "id": 176,
+   "text": "Take a photography walk"
+  },
+  {
+   "id": 177,
+   "text": "Try a new board game"
+  },
+  {
+   "id": 178,
+   "text": "Visit a historical site"
+  },
+  {
+   "id": 179,
+   "text": "Attend a poetry reading"
+  },
+  {
+   "id": 180,
+   "text": "Join a community clean-up"
+  },
+  {
+   "id": 181,
+   "text": "Attend a comedy show"
+  },
+  {
+   "id": 182,
+   "text": "Explore a nearby trail"
+  },
+  {
+   "id": 183,
+   "text": "Start a nature journal"
+  },
+  {
+   "id": 184,
+   "text": "Host a DIY spa day"
+  },
+  {
+   "id": 185,
+   "text": "Attend a wine tasting"
+  },
+  {
+   "id": 186,
+   "text": "Try a new workout class"
+  },
+  {
+   "id": 187,
+   "text": "Visit an aquarium"
+  },
+  {
+   "id": 188,
+   "text": "Join a book club"
+  },
+  {
+   "id": 189,
+   "text": "Attend a farmer's market"
+  },
+  {
+   "id": 190,
+   "text": "Have a picnic in the park"
+  },
+  {
+   "id": 191,
+   "text": "Start a weekly family game night"
+  },
+  {
+   "id": 192,
+   "text": "Take a bike ride"
+  },
+  {
+   "id": 193,
+   "text": "Attend a meditation retreat"
+  },
+  {
+   "id": 194,
+   "text": "Host a karaoke night"
+  },
+  {
+   "id": 195,
+   "text": "Visit a flea market"
+  },
+  {
+   "id": 196,
+   "text": "Try a new cuisine at a restaurant"
+  },
+  {
+   "id": 197,
+   "text": "Start a home movie marathon"
+  },
+  {
+   "id": 198,
+   "text": "Host a trivia night"
+  },
+  {
+   "id": 199,
+   "text": "Explore a local farm"
+  },
+  {
+   "id": 200,
+   "text": "Take a pottery painting class"
+  },
+  {
+   "id": 201,
+   "text": "Attend a live theater performance"
+  },
+  {
+   "id": 202,
+   "text": "Visit a botanical garden"
+  },
+  {
+   "id": 203,
+   "text": "Try indoor rock climbing"
+  },
+  {
+   "id": 204,
+   "text": "Explore a new museum exhibit"
+  },
+  {
+   "id": 205,
+   "text": "Take a cooking workshop"
+  },
+  {
+   "id": 206,
+   "text": "Have a picnic by the lake"
+  },
+  {
+   "id": 207,
+   "text": "Attend a mindfulness meditation session"
+  },
+  {
+   "id": 208,
+   "text": "Try geocaching in your area"
+  },
+  {
+   "id": 209,
+   "text": "Host a DIY craft night"
+  },
+  {
+   "id": 210,
+   "text": "Attend a local cultural festival"
+  },
+  {
+   "id": 211,
+   "text": "Take a scenic train ride"
+  },
+  {
+   "id": 212,
+   "text": "Try a new water sport"
+  },
+  {
+   "id": 213,
+   "text": "Host a board game tournament"
+  },
+  {
+   "id": 214,
+   "text": "Explore a nearby cave or cavern"
+  },
+  {
+   "id": 215,
+   "text": "Attend a local theater production"
+  },
+  {
+   "id": 216,
+   "text": "Take a scenic helicopter tour"
+  },
+  {
+   "id": 217,
+   "text": "Try horseback riding"
+  },
+  {
+   "id": 218,
+   "text": "Host a themed costume party"
+  },
+  {
+   "id": 219,
+   "text": "Attend a wine and paint night"
+  },
+  {
+   "id": 220,
+   "text": "Explore a nearby ghost town"
+  },
+  {
+   "id": 221,
+   "text": "Take a hot air balloon ride"
+  },
+  {
+   "id": 222,
+   "text": "Host a DIY home decor workshop"
+  },
+  {
+   "id": 223,
+   "text": "Attend a live music concert"
+  },
+  {
+   "id": 224,
+   "text": "Try a new type of cuisine at a food truck festival"
+  },
+  {
+   "id": 225,
+   "text": "Explore a nearby botanical reserve"
+  },
+  {
+   "id": 226,
+   "text": "Take a pottery wheel throwing class"
+  },
+  {
+   "id": 227,
+   "text": "Host a film screening night"
+  },
+  {
+   "id": 228,
+   "text": "Attend a local street fair"
+  },
+  {
+   "id": 229,
+   "text": "Try a new outdoor adventure sport"
+  },
+  {
+   "id": 230,
+   "text": "Explore a nearby lighthouse"
+  },
+  {
+   "id": 231,
+   "text": "Try a virtual reality experience"
+  },
+  {
+   "id": 232,
+   "text": "Attend a stand-up comedy show"
+  },
+  {
+   "id": 233,
+   "text": "Explore a nearby waterfall"
+  },
+  {
+   "id": 234,
+   "text": "Take a sushi-making class"
+  },
+  {
+   "id": 235,
+   "text": "Have a beach bonfire"
+  },
+  {
+   "id": 236,
+   "text": "Attend a sound bath meditation"
+  },
+  {
+   "id": 237,
+   "text": "Try paddleboarding or kayaking"
+  },
+  {
+   "id": 238,
+   "text": "Host a DIY candle-making workshop"
+  },
+  {
+   "id": 239,
+   "text": "Visit a butterfly conservatory"
+  },
+  {
+   "id": 240,
+   "text": "Take a scenic hot air balloon ride"
+  },
+  {
+   "id": 241,
+   "text": "Attend a local beer or wine tasting event"
+  },
+  {
+   "id": 242,
+   "text": "Try indoor skydiving"
+  },
+  {
+   "id": 243,
+   "text": "Explore a nearby cavern or cave system"
+  },
+  {
+   "id": 244,
+   "text": "Take a scenic horseback riding tour"
+  },
+  {
+   "id": 245,
+   "text": "Host a DIY succulent planting party"
+  },
+  {
+   "id": 246,
+   "text": "Attend a live jazz or blues performance"
+  },
+  {
+   "id": 247,
+   "text": "Try a new type of dance class"
+  },
+  {
+   "id": 248,
+   "text": "Explore a nearby botanical sanctuary"
+  },
+  {
+   "id": 249,
+   "text": "Attend a local food truck rally"
+  },
+  {
+   "id": 250,
+   "text": "Attend a cultural dance performance"
+  },
+  {
+   "id": 251,
+   "text": "Try a new water activity like snorkeling or scuba diving"
+  },
+  {
+   "id": 252,
+   "text": "Take a woodworking or carpentry class"
+  },
+  {
+   "id": 253,
+   "text": "Try a new fitness class like aerial yoga or barre"
+  },
+  {
+   "id": 254,
+   "text": "Explore a nearby historic battlefield or site"
+  }
+ ]
+}
