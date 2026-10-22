@@ -524,6 +524,19 @@ def stage3_analyses(report: PipelineReport, mode: str, validation_dir: Path, all
                                 [TABLES_DIR / "human_study_llm_by_family.parquet"] +
                                 list(TABLES_DIR.glob("llm_study_*.parquet")), validation_dir)
 
+    # Live pilot v3: the registered analysis (docs/live_pilot/v3_preregistration.md D-7), offline over
+    # the v3 store. Collection is live and started by hand, so this runs only once the store exists;
+    # it writes into the validation dir and never touches the store.
+    v3_store = RESULTS_DIR / "live_pilot_v3"
+    if (v3_store / "recoveries").exists():
+        run_script(report, "analyse_live_v3.py",
+                   ["--store", str(v3_store), "--out", str(validation_dir / "live_pilot_v3_analysis")]
+                   + (["--resamples", "2000"] if mode == "validation" else []))
+    else:
+        report.log("  SKIPPED (loud, documented): analyse_live_v3.py -- no v3 store at results/live_pilot_v3 "
+                    "yet (live collection not started; it is started by hand). Registered so it runs as soon "
+                    "as the store exists.")
+
 
 # --------------------------------------------------------------------------
 # Stage 4 -- figures (separable figure-only entry points)

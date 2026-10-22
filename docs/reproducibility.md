@@ -134,12 +134,14 @@ confirmed by actually running the pipeline offline end-to-end (§6).
 |---|---|
 | What | One v3 session runs all six injection blocks (T, S, O2, O5, O20, D) against the six real tools, with one uniformly drawn recovery strategy and a paired resend baseline per captured failure. Definitions: `docs/live_pilot/strategy_definitions_v3.md` (frozen, `c1705bf`). Hypotheses and analysis: `docs/live_pilot/v3_preregistration.md` (`4723b2b`). |
 | Seeds | Session `s` uses `session_seed = 231000 + s`; `s = 0` is reserved for smoke runs and is never data. Named streams come from `SeedSequence(session_seed, spawn_key=(stream, *keys))` (`recovery/live/v3/seeds.py`): `block_order`, `selection` and `jitter` per failure, and `injection`, `resend`, `outage` and `degradation` per block. Each derived seed is recorded on the record that used it. |
-| Run | Data: `python experiments/run_live_v3.py --store <store> --session-index <s>`, with s = 1, 2, … in order and never re-run. Smoke: `--smoke --store <dir>_smoke` (one pass per block). |
+| Run | Data: `python experiments/run_live_v3.py --store results/live_pilot_v3 --session-index <s>`, with s = 1, 2, … in order and never re-run. Smoke: `--smoke --store <dir>_smoke` (each block runs until it has ≥ 3 injected failures, at most 6 passes). |
 | Stopping | The count-only `recovery/live/v3/stopping.py`: stop when every cell has ≥ 30 included attempts, or after 60 sessions (pre-reg §2). |
 | Report | `python experiments/report_live_v3.py --store <store>` (offline, descriptive). |
+| Analysis | `python experiments/analyse_live_v3.py --store results/live_pilot_v3 --out <dir> [--calibration <fa.json>]`. This is the registered P1–P3 analysis, committed alone in `0cc3bac` (pre-reg D-7). It is offline, with bootstrap seed 23001 and false-alarm sample seed 23002. |
+| Deviations | D-2 to D-6 are applied and logged in pre-reg §11: the Layer-2 selector, the family split, the judge input, read timeouts and pacing. Selector before/after: `experiments/selector_empty_rate_v3.py` (a live measurement). |
 | Libraries | The plausible-wrong libraries in `backend/recovery/live/v3/data/` were captured once by `experiments/capture_v3_libraries.py` and are hash-checked on load. They are never re-captured. |
 | Re-running | Re-running produces **new** observations, not a reproduction. Cite the store's session manifests (`v3_sessions/*.json`, with code commit and seeds). |
-| `reproduce.py` | **Not registered yet.** The collection is live. The v3 analysis script (P1–P3, cell verdicts, pre-reg §9) is still to be written and will be registered, offline over a pinned store, before session 1 (pre-reg §12). |
+| `reproduce.py` | **Registered (stage 3).** `analyse_live_v3.py` runs offline over `results/live_pilot_v3` once that store exists; until then the stage logs a loud skip. Collection itself is live and never run by the pipeline. |
 | Tests | `backend/tests/test_live_v3_*.py` and `test_live_v1v2_golden.py` (no network). |
 | Keys | `GROQ_API_KEY` in `backend/.env`. |
 
