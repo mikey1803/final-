@@ -11,6 +11,8 @@ never data.
     python experiments/run_live_v3.py --store results/live_pilot_v3 --session-index 1
     python experiments/run_live_v3.py --smoke --store <dir>_smoke     # s = 0, adaptive smoke passes
 
+Tasks come from the frozen v3 manifest ``recovery/live/v3/data/v3_tasks.json``
+(D-10); a data session refuses to start if it is untracked or modified.
 Agent selection uses the v3 Layer-2 selector (pre-reg D-2); every LLM call
 shares one client whose rate-limit headers drive the pacer (D-6), which
 waits only at checkpoints outside every strategy's budget clock.
@@ -48,6 +50,7 @@ from recovery.live.v3.pacing import RESERVE_REQUESTS, RESERVE_TOKENS, Pacer  # n
 from recovery.live.v3.selector import V3Selector  # noqa: E402
 from recovery.live.v3.recovery import InlineRecoveryV3  # noqa: E402
 from recovery.live.v3.seeds import session_seed_for, stream_rng  # noqa: E402
+from recovery.live.v3.tasks import TASKS_MANIFEST, load_v3_tasks  # noqa: E402
 
 PASSES_T = 10   # configuration choice (pre-reg §2)
 PASSES_OTHER = 5  # configuration choice (pre-reg §2)
@@ -91,7 +94,6 @@ def _write_log(dirs: V3Dirs, session_seed: int, block: BlockSpec, wrapper: Flaky
 
 
 def main() -> int:
-    from experiments.run_live_collection import STARTER_TASKS
     from recovery.live.executors.llm import GroqChatClient
 
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
@@ -116,7 +118,7 @@ def main() -> int:
             raise SystemExit("--tasks is smoke-only: data sessions run the full frozen task list")
         s = args.session_index
     session_seed = session_seed_for(s)
-    tasks = STARTER_TASKS
+    tasks = load_v3_tasks(require_frozen=not args.smoke)   # D-10: frozen manifest for data sessions
     if args.tasks:
         wanted = args.tasks.split(",")
         tasks = [t for t in tasks if t.task_id in wanted]
@@ -136,8 +138,11 @@ def main() -> int:
         "block_order": [{"block_index": b.block_index, "label": b.label, "mode": b.mode, "outage_N": b.outage_N,
                          "passes": b.passes} for b in blocks],
         "block_order_seed": order_rec, "tasks": [t.task_id for t in tasks], "libraries": libs.hashes,
+        "task_manifest": {"path": "backend/recovery/live/v3/data/v3_tasks.json",
+                          "blob": _git("rev-parse", "HEAD:./recovery/live/v3/data/v3_tasks.json"),
+                          "dirty": bool(_git("status", "--porcelain", "--", str(TASKS_MANIFEST)))},
         "deviations_applied": ["D-2 selector", "D-3 family split", "D-4 judge input", "D-5 read timeout",
-                               "D-6 pacing"],
+                               "D-6 pacing", "D-8 outage k", "D-9 tool_use_failed", "D-10 task manifest"],
         "pacing_reserves": {"tokens": RESERVE_TOKENS, "requests": RESERVE_REQUESTS},
         "smoke_rule": ({"min_injected": args.smoke_min_injected, "max_passes": args.smoke_max_passes}
                        if args.smoke else None),

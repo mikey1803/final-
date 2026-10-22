@@ -1,0 +1,77 @@
+[
+  {
+    "task_id": "wiki_basic_01",
+    "goal": "Look up a short summary of the city of Kolkata using the wikipedia tool.",
+    "category": "tool_call_basic",
+    "steps": [],
+    "clarify_canned_answer": "I mean the Indian city of Kolkata, and a short general summary of it is enough.",
+    "intended_failure_type": null,
+    "targeted": false
+  },
+  {
+    "task_id": "country_basic_01",
+    "goal": "Find the capital city of India using the countriesnow tool.",
+    "category": "tool_call_basic",
+    "steps": [],
+    "clarify_canned_answer": "I mean the country India, and I only need the name of its capital city.",
+    "intended_failure_type": null,
+    "targeted": false
+  },
+  {
+    "task_id": "weather_basic_01",
+    "goal": "Get the current weather for latitude 22.57, longitude 88.36 using the open_meteo tool.",
+    "category": "tool_call_basic",
+    "steps": [],
+    "clarify_canned_answer": "I mean the current conditions right now at exactly those coordinates.",
+    "intended_failure_type": null,
+    "targeted": false
+  },
+  {
+    "task_id": "weather_basic_02",
+    "goal": "Get the current weather for the location 'London' using the wttr tool.",
+    "category": "tool_call_basic",
+    "steps": [],
+    "clarify_canned_answer": "I mean London in the United Kingdom, and I want the weather there right now.",
+    "intended_failure_type": null,
+    "targeted": false
+  },
+  {
+    "task_id": "placeholder_basic_01",
+    "goal": "Fetch todo item number 5 using the jsonplaceholder tool.",
+    "category": "tool_call_basic",
+    "steps": [],
+    "clarify_canned_answer": "I mean the single todo item numbered 5, and only that one item.",
+    "intended_failure_type": null,
+    "targeted": false
+  },
+  {
+    "task_id": "ambiguous_01",
+    "goal": "Find out about the weather situation there.",
+    "category": "ambiguous",
+    "steps": [],
+    "clarify_canned_answer": "I mean the weather in Kolkata right now.",
+    "intended_failure_type": null,
+    "targeted": false
+  },
+  {
+    "task_id": "out_of_scope_01",
+    "goal": "Book a flight from Kolkata to London for tomorrow morning.",
+    "category": "out_of_scope",
+    "steps": [],
+    "clarify_canned_answer": "I want one flight actually booked from Kolkata to London, departing tomorrow morning.",
+    "intended_failure_type": null,
+    "targeted": false
+  },
+  {
+    "task_id": "long_context_01",
+    "goal": "First look up the capital of India using countriesnow. Then, using ONLY the city you just found (do not look it up again), get the current weather for that city using the wttr tool.",
+    "category": "long_context",
+    "steps": [
+      "Find the capital city of India using the countriesnow tool.",
+      "Get the current weather for the city found in the previous step, using the wttr tool."
+    ],
+    "clarify_canned_answer": "First I want India's capital city, then the current weather in that same city without looking the capital up again.",
+    "intended_failure_type": null,
+    "targeted": false
+  }
+]
