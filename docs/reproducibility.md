@@ -128,6 +128,21 @@ confirmed by actually running the pipeline offline end-to-end (§6).
 | Tests | `backend/tests/test_probe.py` (mocked network) runs in the normal suite. |
 | Keys | `GROQ_API_KEY` and `GOOGLE_API_KEY` as GitHub Actions secrets. NVIDIA's model list is public, so no key is needed. |
 
+### Live data source (not regenerable): live pilot v3 (`experiments/run_live_v3.py`)
+
+| | |
+|---|---|
+| What | One v3 session runs all six injection blocks (T, S, O2, O5, O20, D) against the six real tools, with one uniformly drawn recovery strategy and a paired resend baseline per captured failure. Definitions: `docs/live_pilot/strategy_definitions_v3.md` (frozen, `c1705bf`). Hypotheses and analysis: `docs/live_pilot/v3_preregistration.md` (`4723b2b`). |
+| Seeds | Session `s` uses `session_seed = 231000 + s`; `s = 0` is reserved for smoke runs and is never data. Named streams come from `SeedSequence(session_seed, spawn_key=(stream, *keys))` (`recovery/live/v3/seeds.py`): `block_order`, `selection` and `jitter` per failure, and `injection`, `resend`, `outage` and `degradation` per block. Each derived seed is recorded on the record that used it. |
+| Run | Data: `python experiments/run_live_v3.py --store <store> --session-index <s>`, with s = 1, 2, … in order and never re-run. Smoke: `--smoke --store <dir>_smoke` (one pass per block). |
+| Stopping | The count-only `recovery/live/v3/stopping.py`: stop when every cell has ≥ 30 included attempts, or after 60 sessions (pre-reg §2). |
+| Report | `python experiments/report_live_v3.py --store <store>` (offline, descriptive). |
+| Libraries | The plausible-wrong libraries in `backend/recovery/live/v3/data/` were captured once by `experiments/capture_v3_libraries.py` and are hash-checked on load. They are never re-captured. |
+| Re-running | Re-running produces **new** observations, not a reproduction. Cite the store's session manifests (`v3_sessions/*.json`, with code commit and seeds). |
+| `reproduce.py` | **Not registered yet.** The collection is live. The v3 analysis script (P1–P3, cell verdicts, pre-reg §9) is still to be written and will be registered, offline over a pinned store, before session 1 (pre-reg §12). |
+| Tests | `backend/tests/test_live_v3_*.py` and `test_live_v1v2_golden.py` (no network). |
+| Keys | `GROQ_API_KEY` in `backend/.env`. |
+
 ## 5. The two modes
 
 | | `--mode validation` | `--mode paper` |
